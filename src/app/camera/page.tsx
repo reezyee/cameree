@@ -422,17 +422,17 @@ export default function CameraPage() {
     if (collageCanvasRef.current && collageImages.length > 0) {
       const context = collageCanvasRef.current.getContext("2d");
       if (!context) return;
-
-      // Get dimensions from video reference
+  
+      // Get dimensions from video reference or use default
       const baseWidth = videoRef.current?.videoWidth || 640;
       const padding = 14;
-
-      // Define horizontal aspect ratio (e.g., 16:9)
+  
+      // Define fixed landscape aspect ratio (16:9)
       const aspectRatio = 16 / 9;
-
+  
       // Helper function for contrast color
       const getContrastColor = (bgColor: string): string => {
-        // Validasi format warna hex (contoh: #RRGGBB)
+        // Validate hex color format (e.g., #RRGGBB)
         const hexToRgb = (hex: string) => {
           if (!/^#([0-9A-Fa-f]{6})$/.test(hex)) {
             throw new Error("Invalid hex color format");
@@ -444,34 +444,43 @@ export default function CameraPage() {
             b: bigint & 255,
           };
         };
-
+  
         try {
           const { r, g, b } = hexToRgb(bgColor);
-
-          // Hitung kecerahan (luminance) menggunakan rumus persepsi
+  
+          // Calculate perceived brightness
           const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-
-          // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
+  
+          // Use black text on light backgrounds, white text on dark backgrounds
           return brightness > 128 ? "black" : "white";
         } catch (error) {
           console.error("Error processing color:", error);
-          return "black"; // Default jika warna tidak valid
+          return "black"; // Default fallback
         }
       };
-
+  
       // Set canvas size based on selected layout
       if (gridLayout === "2x2") {
-        // 2x2 Grid layout with landscape orientation for each cell
-        const totalWidth = baseWidth + padding * 2;
-        const cellWidth = baseWidth / 2 - 10;
-        const cellHeight = cellWidth / aspectRatio; // Ensure landscape orientation
-
+        // Determine the best dimensions for the device
+        const screenWidth = window.innerWidth;
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        
+        // Adjust base width for mobile devices
+        const adjustedBaseWidth = isMobile ? Math.min(screenWidth - 30, baseWidth) : baseWidth;
+        
+        // 2x2 Grid layout with enforced landscape orientation for each cell
+        const totalWidth = adjustedBaseWidth + padding * 2;
+        const cellWidth = (adjustedBaseWidth / 2) - 10;
+        
+        // Enforce landscape aspect ratio (width > height)
+        const cellHeight = cellWidth / aspectRatio;
+  
         // Calculate total height based on the aspect ratio
-        const totalHeight = cellHeight * 2 + padding * 2 + 35 + 10; // 10 is for gap between rows
-
+        const totalHeight = cellHeight * 2 + padding * 2 + 35 + 10; // 10px gap between rows
+  
         collageCanvasRef.current.width = totalWidth;
         collageCanvasRef.current.height = totalHeight;
-
+  
         // Clear canvas and set background
         context.fillStyle = backgroundColor;
         context.fillRect(
@@ -480,12 +489,11 @@ export default function CameraPage() {
           collageCanvasRef.current.width,
           collageCanvasRef.current.height
         );
-
+  
         // Draw images in a 2x2 grid with consistent landscape orientation
         await Promise.all(
           collageImages.map((img, index) => {
             return new Promise<void>((resolve) => {
-              // Use document.createElement to create the image
               const image = document.createElement("img");
               image.src = img;
               image.onload = () => {
@@ -493,7 +501,27 @@ export default function CameraPage() {
                 const col = index % 2;
                 const x = col * (cellWidth + 15) + padding;
                 const y = row * (cellHeight + 10) + padding;
-
+  
+                // Calculate proper dimensions to maintain landscape orientation
+                let drawWidth = cellWidth;
+                let drawHeight = cellHeight;
+                
+                // If image has different aspect ratio, fit it properly
+                const imgAspect = image.width / image.height;
+                
+                // Always enforce our target aspect ratio regardless of source image
+                if (imgAspect !== aspectRatio) {
+                  // We prioritize filling the width and adjusting height
+                  drawHeight = drawWidth / imgAspect;
+                  
+                  // Ensure we maintain landscape orientation
+                  if (drawHeight > drawWidth) {
+                    // If height would be greater than width, constrain by height instead
+                    drawHeight = cellHeight;
+                    drawWidth = drawHeight * imgAspect;
+                  }
+                }
+  
                 // Draw rounded corners
                 context.save();
                 context.beginPath();
@@ -516,72 +544,98 @@ export default function CameraPage() {
                 context.arcTo(x, y, x + cellWidth, y, 10);
                 context.closePath();
                 context.clip();
-
+  
                 // Draw the image maintaining landscape orientation
                 context.imageSmoothingEnabled = true;
                 context.imageSmoothingQuality = "high";
                 context.drawImage(image, x, y, cellWidth, cellHeight);
-
+  
                 // Add a subtle border
                 context.strokeStyle = "rgba(255,255,255,0.5)";
                 context.lineWidth = 3;
                 context.stroke();
-
+  
                 context.restore();
                 resolve();
               };
             });
           })
         );
-
+  
         // Determine text color based on background
         const textColor = getContrastColor(backgroundColor);
-
+  
         // Add "Caméree - Photo Booth" text
         const text = "Caméree - Photo Booth";
         context.font = "bold 28px Arial";
         context.fillStyle = textColor;
         context.textAlign = "center";
         context.textBaseline = "bottom";
-
+  
         // Position text at the bottom center
         const textX = collageCanvasRef.current.width / 2;
         const textY = collageCanvasRef.current.height - 20;
-
+  
         // Draw text on canvas
         context.fillText(text, textX, textY);
       } else {
         // 4x1 Vertical layout with landscape photos
-        // Calculate image dimensions for the 4x1 layout with landscape orientation
-        const imgWidth = Math.min(baseWidth * 0.85, 520);
-        const imgHeight = imgWidth / aspectRatio; // Enforce landscape aspect ratio
+        // Get screen dimensions
+        const screenWidth = window.innerWidth;
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        
+        // Adjust width for mobile devices
+        const maxWidth = isMobile ? Math.min(screenWidth - 30, baseWidth) : baseWidth;
+        const imgWidth = Math.min(maxWidth * 0.85, 520);
+        
+        // Enforce landscape aspect ratio for each image
+        const imgHeight = imgWidth / aspectRatio;
         const gap = 7;
-
+  
         // Calculate total height based on 4 images
         const totalHeight =
           imgHeight * collageImages.length +
           gap * (collageImages.length - 1) +
           padding * 2 +
           35;
-
+  
         collageCanvasRef.current.width = imgWidth + padding * 2;
         collageCanvasRef.current.height = totalHeight;
-
+  
         // Clear canvas and set background
         context.fillStyle = backgroundColor;
         context.fillRect(0, 0, collageCanvasRef.current.width, totalHeight);
-
+  
         // Draw images stacked vertically but each with landscape orientation
         await Promise.all(
           collageImages.map((img, index) => {
             return new Promise<void>((resolve) => {
-              // Use document.createElement to create the image
               const image = document.createElement("img");
               image.src = img;
               image.onload = () => {
                 const imgX = padding;
                 const imgY = padding + index * (imgHeight + gap);
-
+  
+                // Calculate proper dimensions to maintain landscape orientation
+                let drawWidth = imgWidth;
+                let drawHeight = imgHeight;
+                
+                // If image has different aspect ratio, fit it properly
+                const imgAspect = image.width / image.height;
+                
+                // Always enforce our target aspect ratio regardless of source image
+                if (imgAspect !== aspectRatio) {
+                  // For landscape orientation, prioritize width first
+                  drawHeight = drawWidth / imgAspect;
+                  
+                  // Ensure we maintain landscape orientation (width > height)
+                  if (drawHeight > drawWidth) {
+                    // If height would be greater than width, constrain by height instead
+                    drawHeight = imgHeight;
+                    drawWidth = drawHeight * imgAspect;
+                  }
+                }
+  
                 // Draw rounded corners
                 context.save();
                 context.beginPath();
@@ -604,44 +658,44 @@ export default function CameraPage() {
                 context.arcTo(imgX, imgY, imgX + imgWidth, imgY, 10);
                 context.closePath();
                 context.clip();
-
+  
                 // Draw the image with improved quality and landscape orientation
                 context.imageSmoothingEnabled = true;
                 context.imageSmoothingQuality = "high";
                 context.drawImage(image, imgX, imgY, imgWidth, imgHeight);
-
+  
                 // Add a subtle border
                 context.strokeStyle = "rgba(255,255,255,0.5)";
                 context.lineWidth = 3;
                 context.stroke();
-
+  
                 context.restore();
                 resolve();
               };
             });
           })
         );
-
+  
         // Determine text color based on background
         const textColor = getContrastColor(backgroundColor);
-
+  
         // Add "Caméree - Photo Booth" text
         const text = "Caméree - Photo Booth";
         context.font = "bold 20px Arial";
         context.fillStyle = textColor;
         context.textAlign = "center";
         context.textBaseline = "bottom";
-
+  
         // Position text at the bottom center
         const textX = collageCanvasRef.current.width / 2;
         const textY = collageCanvasRef.current.height - 20;
-
+  
         // Draw text on canvas
         context.fillText(text, textX, textY);
       }
     }
   };
-
+  
   const capturePhotoSeries = () => {
     setIsCapturing(true);
     setCollageImages([]);
