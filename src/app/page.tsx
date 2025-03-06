@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useRef, useState, Suspense } from "react";
+import React, { useRef, Suspense } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { motion, useScroll, useTransform } from "framer-motion";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Float, Text3D } from "@react-three/drei";
+import { Mesh } from "three";
+import { OrbitControls, Float } from "@react-three/drei";
 import { Camera, Filter, Download } from "lucide-react";
 
 function VintageCamera() {
-  const meshRef = useRef();
+  const meshRef = useRef<Mesh>(null!);
 
   useFrame(({ clock }) => {
     if (meshRef.current) {
@@ -32,13 +33,6 @@ function VintageCamera() {
 }
 
 export default function Home() {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll();
-  const [isHovered, setIsHovered] = useState(false);
-
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.5]);
-
   return (
     <div className="bg-[#c7c1b6] min-h-screen">
       {/* Hero Section */}
@@ -56,7 +50,7 @@ export default function Home() {
             Capture Timeless Moments
           </h2>
           <p className="text-xl text-[#153378] opacity-80">
-            Embrace the vintage charm of photography with Caméree's unique
+            Embrace the vintage charm of photography with Caméree&apos;s unique
             vintage filters and retro aesthetics.
           </p>
           <div className="flex z-50 space-x-4">
@@ -131,7 +125,8 @@ export default function Home() {
       {/* Footer */}
       <footer className="backdrop-blur-md py-6 text-center">
         <p className="text-[#153378]">
-          © {new Date().getFullYear()} <a href="https://reezyee.github.io">Reezyee. </a>
+          © {new Date().getFullYear()}{" "}
+          <a href="https://reezyee.github.io">Reezyee. </a>
           Capture the essence of memories.
         </p>
       </footer>

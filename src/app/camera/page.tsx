@@ -2,36 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Camera,
-  RefreshCcw,
-  Download,
-  Layers,
-  MoonStar,
-  Sun,
-  Palette,
-} from "lucide-react";
+import { motion } from "framer-motion";
+import { Camera, RefreshCcw, Download } from "lucide-react";
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const liveFilterCanvasRef = useRef<HTMLCanvasElement>(null);
   const collageCanvasRef = useRef<HTMLCanvasElement>(null);
-  const filters = [
+  type FilterType = {
+    id: "none" | "grayscale" | "sepia" | "retro" | "infrared";
+    label: string;
+    src: string;
+  };
+
+  const filters: FilterType[] = [
     { id: "none", label: "No Filter", src: "/images/no-filter.jpeg" },
     { id: "grayscale", label: "B&W", src: "/images/B&W.jpeg" },
     { id: "sepia", label: "Sepia", src: "/images/sepia.jpeg" },
     { id: "retro", label: "Retro", src: "/images/retro.png" },
     { id: "infrared", label: "Infrared", src: "/images/infrared.png" },
-  ] as const;
+  ];
 
-  // Auto-generate FilterType from filters array
-  type FilterType = (typeof filters)[number]["id"];
-
-  const [filter, setFilter] = useState<FilterType>("none");
+  const [filter, setFilter] = useState<FilterType["id"]>("none");
   const [collageImages, setCollageImages] = useState<string[]>([]);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [isMirrored, setIsMirrored] = useState<boolean>(true);
@@ -71,10 +65,6 @@ export default function CameraPage() {
           width: { ideal: 3840 }, // 4K resolution for maximum clarity
           height: { ideal: 2160 },
           frameRate: { ideal: 60, max: 120 }, // Smooth video
-          advanced: [
-            { focusMode: "continuous" }, // Enable continuous autofocus
-            { zoom: 1 }, // Ensure no digital zoom is applied
-          ],
         },
       });
 
@@ -93,9 +83,14 @@ export default function CameraPage() {
           };
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error accessing camera:", err);
-      alert(`Error accessing camera: ${err.message}`);
+
+      if (err instanceof Error) {
+        alert(`Error accessing camera: ${err.message}`);
+      } else {
+        alert("Error accessing camera: Unknown error occurred");
+      }
     }
   };
 
@@ -483,9 +478,12 @@ export default function CameraPage() {
         );
 
         // Tentukan warna teks berdasarkan warna background
-        const getContrastColor = (bgColor) => {
-          // Ambil komponen RGB dari warna background
-          const hexToRgb = (hex) => {
+        const getContrastColor = (bgColor: string): string => {
+          // Validasi format warna hex (contoh: #RRGGBB)
+          const hexToRgb = (hex: string) => {
+            if (!/^#([0-9A-Fa-f]{6})$/.test(hex)) {
+              throw new Error("Invalid hex color format");
+            }
             const bigint = parseInt(hex.slice(1), 16);
             return {
               r: (bigint >> 16) & 255,
@@ -494,13 +492,18 @@ export default function CameraPage() {
             };
           };
 
-          const { r, g, b } = hexToRgb(bgColor);
+          try {
+            const { r, g, b } = hexToRgb(bgColor);
 
-          // Hitung kecerahan (brightness) menggunakan rumus luminance
-          const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+            // Hitung kecerahan (luminance) menggunakan rumus persepsi
+            const brightness = r * 0.299 + g * 0.587 + b * 0.114;
 
-          // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
-          return brightness > 128 ? "black" : "white";
+            // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
+            return brightness > 128 ? "black" : "white";
+          } catch (error) {
+            console.error("Error processing color:", error);
+            return "black"; // Default jika warna tidak valid
+          }
         };
 
         // Tentukan warna teks berdasarkan backgroundColor
@@ -595,9 +598,12 @@ export default function CameraPage() {
         );
 
         // Tentukan warna teks berdasarkan warna background
-        const getContrastColor = (bgColor) => {
-          // Ambil komponen RGB dari warna background
-          const hexToRgb = (hex) => {
+        const getContrastColor = (bgColor: string): string => {
+          // Validasi format warna hex (contoh: #RRGGBB)
+          const hexToRgb = (hex: string) => {
+            if (!/^#([0-9A-Fa-f]{6})$/.test(hex)) {
+              throw new Error("Invalid hex color format");
+            }
             const bigint = parseInt(hex.slice(1), 16);
             return {
               r: (bigint >> 16) & 255,
@@ -606,13 +612,18 @@ export default function CameraPage() {
             };
           };
 
-          const { r, g, b } = hexToRgb(bgColor);
+          try {
+            const { r, g, b } = hexToRgb(bgColor);
 
-          // Hitung kecerahan (brightness) menggunakan rumus luminance
-          const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+            // Hitung kecerahan (luminance) menggunakan rumus persepsi
+            const brightness = r * 0.299 + g * 0.587 + b * 0.114;
 
-          // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
-          return brightness > 128 ? "black" : "white";
+            // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
+            return brightness > 128 ? "black" : "white";
+          } catch (error) {
+            console.error("Error processing color:", error);
+            return "black"; // Default jika warna tidak valid
+          }
         };
 
         // Tentukan warna teks berdasarkan backgroundColor
@@ -639,7 +650,7 @@ export default function CameraPage() {
     setIsCapturing(true);
     setCollageImages([]);
 
-    function startCountdown(callback) {
+    function startCountdown(callback: () => void) {
       let count = 3; // Hitung mundur 3 detik sebelum capture
       setCountdownValue(count);
 
@@ -714,9 +725,7 @@ export default function CameraPage() {
           transition={{ duration: 0.5 }}
           className="text-5xl font-extrabold text-transparent bg-clip-text bg-[#153378]"
         >
-          <Link href="/">
-          Caméree
-          </Link>
+          <Link href="/">Caméree</Link>
           <span className="block text-sm font-medium text-[#153378] mt-2">
             Interactive Photo Booth
           </span>
@@ -780,7 +789,7 @@ export default function CameraPage() {
                   } transition-all duration-300 ease-in-out`}
                 >
                   <img
-                    src={src}
+                    src={src as string}
                     alt={label}
                     className="w-full h-auto object-cover"
                   />
@@ -835,7 +844,10 @@ export default function CameraPage() {
             </div>
 
             {/* Main Capture Button */}
-            <motion.div whileHover={{ scale: 1.005 }} whileTap={{ scale: 0.99 }}>
+            <motion.div
+              whileHover={{ scale: 1.005 }}
+              whileTap={{ scale: 0.99 }}
+            >
               <Button
                 onClick={capturePhotoSeries}
                 disabled={isCapturing}
@@ -847,7 +859,7 @@ export default function CameraPage() {
               >
                 {isCapturing ? "Capturing..." : "Start Photo Booth"}
               </Button>
-            </motion.div> 
+            </motion.div>
           </div>
         </motion.div>
 
@@ -860,14 +872,11 @@ export default function CameraPage() {
         >
           {collageImages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center text-[#153378]">
-              <Camera
-                className="w-24 h-24 text-[#153378]"
-                strokeWidth={1}
-              />
+              <Camera className="w-24 h-24 text-[#153378]" strokeWidth={1} />
               <h2 className="text-2xl font-bold mb-2">Ready to Capture</h2>
               <p className="text-sm">
-                Click "Start Photo Booth" to begin your photoshoot. You'll
-                capture 4 photos in a{" "}
+                Click &quot;Start Photo Booth&quot; to begin your photoshoot.
+                You&apos;ll capture 4 photos in a{" "}
                 {gridLayout === "2x2" ? "2×2 grid" : "4×1 stack"} layout.
               </p>
             </div>
