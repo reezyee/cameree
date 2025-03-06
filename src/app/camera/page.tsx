@@ -49,49 +49,63 @@ export default function CameraPage() {
     }
   };
 
+  const getOptimalResolution = () => {
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    const screenWidth = window.innerWidth;
+
+    if (!isMobile && screenWidth >= 2560) {
+      // Laptop/PC resolusi tinggi (4K/2K)
+      return { width: { ideal: 3840 }, height: { ideal: 2160 } };
+    } else if (!isMobile) {
+      // Laptop/PC standar (Full HD)
+      return { width: { ideal: 1920 }, height: { ideal: 1080 } };
+    } else if (screenWidth >= 1280) {
+      // Tablet (1280x720)
+      return { width: { ideal: 1280 }, height: { ideal: 720 } };
+    } else {
+      // HP (720x480)
+      return { width: { ideal: 720 }, height: { ideal: 480 } };
+    }
+  };
+
   const startCamera = async () => {
     try {
-      console.log("Attempting to start camera with facingMode:", facingMode);
+      console.log("Starting camera...");
 
-      // Stop any existing video streams
+      // Hentikan stream yang sudah ada
       if (videoRef.current?.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach((track) => track.stop());
-        console.log("Stopped previous camera streams.");
+        (videoRef.current.srcObject as MediaStream)
+          .getTracks()
+          .forEach((track) => track.stop());
       }
+
+      const { width, height } = getOptimalResolution();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode,
-          width: { ideal: 3840 }, // 4K resolution for maximum clarity
-          height: { ideal: 2160 },
-          frameRate: { ideal: 60, max: 120 }, // Smooth video
+          width,
+          height,
+          frameRate: { ideal: 30, max: 120 },
+          aspectRatio: { ideal: 16 / 9 },
         },
       });
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        console.log("Camera stream started successfully.");
-
         await new Promise((resolve) => {
           videoRef.current!.onloadedmetadata = () => {
-            console.log("Metadata loaded, playing video.");
-            videoRef.current?.play().then(() => {
-              // Start processing frames for filter preview once video is playing
-              startLiveFilterPreview();
-              resolve(null);
-            });
+            videoRef.current?.play();
+            startLiveFilterPreview();
+            resolve(null);
           };
         });
-      }
-    } catch (err: unknown) {
-      console.error("Error accessing camera:", err);
 
-      if (err instanceof Error) {
-        alert(`Error accessing camera: ${err.message}`);
-      } else {
-        alert("Error accessing camera: Unknown error occurred");
+        console.log("Camera started successfully.");
       }
+    } catch (error) {
+      console.error("Error starting camera:", error);
+      alert("Gagal mengakses kamera: " + (error as Error).message);
     }
   };
 
@@ -181,10 +195,13 @@ export default function CameraPage() {
     context.putImageData(imageData, 0, 0);
   };
 
-  const applyRetroVintageFilter = (
+  const applyRetroVintageFilter = async (
     context: CanvasRenderingContext2D,
     canvas: HTMLCanvasElement
   ) => {
+    const imageBitmap = await createImageBitmap(canvas);
+    context.drawImage(imageBitmap, 0, 0);
+
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
@@ -406,18 +423,54 @@ export default function CameraPage() {
       const context = collageCanvasRef.current.getContext("2d");
       if (!context) return;
 
-      const width = videoRef.current?.videoWidth || 640;
-      const height = videoRef.current?.videoHeight || 480;
+      // Get dimensions from video reference
+      const baseWidth = videoRef.current?.videoWidth || 640;
       const padding = 14;
+
+      // Define horizontal aspect ratio (e.g., 16:9)
+      const aspectRatio = 16 / 9;
+
+      // Helper function for contrast color
+      const getContrastColor = (bgColor: string): string => {
+        // Validasi format warna hex (contoh: #RRGGBB)
+        const hexToRgb = (hex: string) => {
+          if (!/^#([0-9A-Fa-f]{6})$/.test(hex)) {
+            throw new Error("Invalid hex color format");
+          }
+          const bigint = parseInt(hex.slice(1), 16);
+          return {
+            r: (bigint >> 16) & 255,
+            g: (bigint >> 8) & 255,
+            b: bigint & 255,
+          };
+        };
+
+        try {
+          const { r, g, b } = hexToRgb(bgColor);
+
+          // Hitung kecerahan (luminance) menggunakan rumus persepsi
+          const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+
+          // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
+          return brightness > 128 ? "black" : "white";
+        } catch (error) {
+          console.error("Error processing color:", error);
+          return "black"; // Default jika warna tidak valid
+        }
+      };
 
       // Set canvas size based on selected layout
       if (gridLayout === "2x2") {
-        // 2x2 Grid layout
-        collageCanvasRef.current.width = width + padding * 2;
-        collageCanvasRef.current.height = height + padding * 2 + 35;
+        // 2x2 Grid layout with landscape orientation for each cell
+        const totalWidth = baseWidth + padding * 2;
+        const cellWidth = baseWidth / 2 - 10;
+        const cellHeight = cellWidth / aspectRatio; // Ensure landscape orientation
 
-        const cellWidth = width / 2 - 10;
-        const cellHeight = height / 2 - 10;
+        // Calculate total height based on the aspect ratio
+        const totalHeight = cellHeight * 2 + padding * 2 + 35 + 10; // 10 is for gap between rows
+
+        collageCanvasRef.current.width = totalWidth;
+        collageCanvasRef.current.height = totalHeight;
 
         // Clear canvas and set background
         context.fillStyle = backgroundColor;
@@ -428,7 +481,7 @@ export default function CameraPage() {
           collageCanvasRef.current.height
         );
 
-        // Draw images in a 2x2 grid
+        // Draw images in a 2x2 grid with consistent landscape orientation
         await Promise.all(
           collageImages.map((img, index) => {
             return new Promise<void>((resolve) => {
@@ -464,6 +517,9 @@ export default function CameraPage() {
                 context.closePath();
                 context.clip();
 
+                // Draw the image maintaining landscape orientation
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = "high";
                 context.drawImage(image, x, y, cellWidth, cellHeight);
 
                 // Add a subtle border
@@ -478,58 +534,27 @@ export default function CameraPage() {
           })
         );
 
-        // Tentukan warna teks berdasarkan warna background
-        const getContrastColor = (bgColor: string): string => {
-          // Validasi format warna hex (contoh: #RRGGBB)
-          const hexToRgb = (hex: string) => {
-            if (!/^#([0-9A-Fa-f]{6})$/.test(hex)) {
-              throw new Error("Invalid hex color format");
-            }
-            const bigint = parseInt(hex.slice(1), 16);
-            return {
-              r: (bigint >> 16) & 255,
-              g: (bigint >> 8) & 255,
-              b: bigint & 255,
-            };
-          };
-
-          try {
-            const { r, g, b } = hexToRgb(bgColor);
-
-            // Hitung kecerahan (luminance) menggunakan rumus persepsi
-            const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-
-            // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
-            return brightness > 128 ? "black" : "white";
-          } catch (error) {
-            console.error("Error processing color:", error);
-            return "black"; // Default jika warna tidak valid
-          }
-        };
-
-        // Tentukan warna teks berdasarkan backgroundColor
+        // Determine text color based on background
         const textColor = getContrastColor(backgroundColor);
 
-        // Tambahkan teks "Caméree - Photo Booth"
+        // Add "Caméree - Photo Booth" text
         const text = "Caméree - Photo Booth";
         context.font = "bold 28px Arial";
         context.fillStyle = textColor;
         context.textAlign = "center";
         context.textBaseline = "bottom";
 
-        // Hitung posisi teks di tengah bawah
+        // Position text at the bottom center
         const textX = collageCanvasRef.current.width / 2;
         const textY = collageCanvasRef.current.height - 20;
 
-        // Gambar teks di canvas
+        // Draw text on canvas
         context.fillText(text, textX, textY);
       } else {
-        // 4x1 Vertical layout
-        const aspectRatio = width / height;
-
-        // Calculate image dimensions for the 4x1 layout
-        const imgWidth = Math.min(width * 0.85, 520);
-        const imgHeight = imgWidth / aspectRatio;
+        // 4x1 Vertical layout with landscape photos
+        // Calculate image dimensions for the 4x1 layout with landscape orientation
+        const imgWidth = Math.min(baseWidth * 0.85, 520);
+        const imgHeight = imgWidth / aspectRatio; // Enforce landscape aspect ratio
         const gap = 7;
 
         // Calculate total height based on 4 images
@@ -537,8 +562,7 @@ export default function CameraPage() {
           imgHeight * collageImages.length +
           gap * (collageImages.length - 1) +
           padding * 2 +
-          35 +
-          30;
+          35;
 
         collageCanvasRef.current.width = imgWidth + padding * 2;
         collageCanvasRef.current.height = totalHeight;
@@ -547,7 +571,7 @@ export default function CameraPage() {
         context.fillStyle = backgroundColor;
         context.fillRect(0, 0, collageCanvasRef.current.width, totalHeight);
 
-        // Draw images stacked vertically with proper aspect ratio
+        // Draw images stacked vertically but each with landscape orientation
         await Promise.all(
           collageImages.map((img, index) => {
             return new Promise<void>((resolve) => {
@@ -581,7 +605,7 @@ export default function CameraPage() {
                 context.closePath();
                 context.clip();
 
-                // Draw the image with improved quality
+                // Draw the image with improved quality and landscape orientation
                 context.imageSmoothingEnabled = true;
                 context.imageSmoothingQuality = "high";
                 context.drawImage(image, imgX, imgY, imgWidth, imgHeight);
@@ -598,50 +622,21 @@ export default function CameraPage() {
           })
         );
 
-        // Tentukan warna teks berdasarkan warna background
-        const getContrastColor = (bgColor: string): string => {
-          // Validasi format warna hex (contoh: #RRGGBB)
-          const hexToRgb = (hex: string) => {
-            if (!/^#([0-9A-Fa-f]{6})$/.test(hex)) {
-              throw new Error("Invalid hex color format");
-            }
-            const bigint = parseInt(hex.slice(1), 16);
-            return {
-              r: (bigint >> 16) & 255,
-              g: (bigint >> 8) & 255,
-              b: bigint & 255,
-            };
-          };
-
-          try {
-            const { r, g, b } = hexToRgb(bgColor);
-
-            // Hitung kecerahan (luminance) menggunakan rumus persepsi
-            const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-
-            // Jika cerah, gunakan teks hitam, jika gelap gunakan teks putih
-            return brightness > 128 ? "black" : "white";
-          } catch (error) {
-            console.error("Error processing color:", error);
-            return "black"; // Default jika warna tidak valid
-          }
-        };
-
-        // Tentukan warna teks berdasarkan backgroundColor
+        // Determine text color based on background
         const textColor = getContrastColor(backgroundColor);
 
-        // Tambahkan teks "Caméree - Photo Booth"
+        // Add "Caméree - Photo Booth" text
         const text = "Caméree - Photo Booth";
         context.font = "bold 20px Arial";
         context.fillStyle = textColor;
         context.textAlign = "center";
         context.textBaseline = "bottom";
 
-        // Hitung posisi teks di tengah bawah
+        // Position text at the bottom center
         const textX = collageCanvasRef.current.width / 2;
         const textY = collageCanvasRef.current.height - 20;
 
-        // Gambar teks di canvas
+        // Draw text on canvas
         context.fillText(text, textX, textY);
       }
     }
@@ -752,6 +747,7 @@ export default function CameraPage() {
               }`}
               style={{
                 transform: isMirrored ? "scaleX(-1)" : "scaleX(1)",
+                objectFit: "cover",
               }}
             />
             <canvas
@@ -892,7 +888,7 @@ export default function CameraPage() {
                 <canvas
                   ref={collageCanvasRef}
                   className={`
-                    rounded-xl shadow-lg 
+                    rounded-xl shadow-lg
                     ${gridLayout === "4x1" ? "max-w-xs" : "w-full"}
                   `}
                 />
