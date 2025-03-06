@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Camera, RefreshCcw, Download } from "lucide-react";
 
 export default function CameraPage() {
@@ -788,9 +789,11 @@ export default function CameraPage() {
                       : "border-2 border-[#c7c1b6] hover:border-[#bdb7ae]"
                   } transition-all duration-300 ease-in-out`}
                 >
-                  <img
+                  <Image
                     src={src as string}
                     alt={label}
+                    width={64} // Sesuaikan dengan ukuran gambar
+                    height={64}
                     className="w-full h-auto object-cover"
                   />
                 </button>
