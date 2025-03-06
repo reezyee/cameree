@@ -459,12 +459,12 @@ export default function CameraPage() {
         }
       };
   
+      // Determine if we're on mobile
+      const screenWidth = window.innerWidth;
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      
       // Set canvas size based on selected layout
       if (gridLayout === "2x2") {
-        // Determine the best dimensions for the device
-        const screenWidth = window.innerWidth;
-        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-        
         // Adjust base width for mobile devices
         const adjustedBaseWidth = isMobile ? Math.min(screenWidth - 30, baseWidth) : baseWidth;
         
@@ -472,7 +472,7 @@ export default function CameraPage() {
         const totalWidth = adjustedBaseWidth + padding * 2;
         const cellWidth = (adjustedBaseWidth / 2) - 10;
         
-        // Enforce landscape aspect ratio (width > height)
+        // IMPORTANT: Enforce landscape aspect ratio (width > height)
         const cellHeight = cellWidth / aspectRatio;
   
         // Calculate total height based on the aspect ratio
@@ -495,32 +495,13 @@ export default function CameraPage() {
           collageImages.map((img, index) => {
             return new Promise<void>((resolve) => {
               const image = document.createElement("img");
+              image.crossOrigin = "anonymous";
               image.src = img;
               image.onload = () => {
                 const row = Math.floor(index / 2);
                 const col = index % 2;
                 const x = col * (cellWidth + 15) + padding;
                 const y = row * (cellHeight + 10) + padding;
-  
-                // Calculate proper dimensions to maintain landscape orientation
-                let drawWidth = cellWidth;
-                let drawHeight = cellHeight;
-                
-                // If image has different aspect ratio, fit it properly
-                const imgAspect = image.width / image.height;
-                
-                // Always enforce our target aspect ratio regardless of source image
-                if (imgAspect !== aspectRatio) {
-                  // We prioritize filling the width and adjusting height
-                  drawHeight = drawWidth / imgAspect;
-                  
-                  // Ensure we maintain landscape orientation
-                  if (drawHeight > drawWidth) {
-                    // If height would be greater than width, constrain by height instead
-                    drawHeight = cellHeight;
-                    drawWidth = drawHeight * imgAspect;
-                  }
-                }
   
                 // Draw rounded corners
                 context.save();
@@ -545,10 +526,43 @@ export default function CameraPage() {
                 context.closePath();
                 context.clip();
   
-                // Draw the image maintaining landscape orientation
-                context.imageSmoothingEnabled = true;
-                context.imageSmoothingQuality = "high";
-                context.drawImage(image, x, y, cellWidth, cellHeight);
+                // Create an off-screen canvas for proper image processing
+                const offscreenCanvas = document.createElement('canvas');
+                const offCtx = offscreenCanvas.getContext('2d');
+                
+                if (offCtx) {
+                  // Calculate source dimensions to maintain aspect ratio
+                  let sourceX = 0;
+                  let sourceY = 0;
+                  let sourceWidth = image.width;
+                  let sourceHeight = image.height;
+                  
+                  // Calculate the aspect ratio of the source image
+                  const sourceAspect = image.width / image.height;
+                  
+                  // If source aspect doesn't match our target, crop the source
+                  if (sourceAspect > aspectRatio) {
+                    // Source is wider than target: crop width
+                    sourceWidth = image.height * aspectRatio;
+                    sourceX = (image.width - sourceWidth) / 2;
+                  } else if (sourceAspect < aspectRatio) {
+                    // Source is taller than target: crop height
+                    sourceHeight = image.width / aspectRatio;
+                    sourceY = (image.height - sourceHeight) / 2;
+                  }
+                  
+                  // Draw the image with proper cropping to maintain exact 16:9 aspect ratio
+                  context.imageSmoothingEnabled = true;
+                  context.imageSmoothingQuality = "high";
+                  context.drawImage(
+                    image,
+                    sourceX, sourceY, sourceWidth, sourceHeight, // Source
+                    x, y, cellWidth, cellHeight // Destination
+                  );
+                } else {
+                  // Fallback if offscreen canvas fails
+                  context.drawImage(image, x, y, cellWidth, cellHeight);
+                }
   
                 // Add a subtle border
                 context.strokeStyle = "rgba(255,255,255,0.5)";
@@ -580,19 +594,15 @@ export default function CameraPage() {
         context.fillText(text, textX, textY);
       } else {
         // 4x1 Vertical layout with landscape photos
-        // Get screen dimensions
-        const screenWidth = window.innerWidth;
-        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-        
         // Adjust width for mobile devices
         const maxWidth = isMobile ? Math.min(screenWidth - 30, baseWidth) : baseWidth;
         const imgWidth = Math.min(maxWidth * 0.85, 520);
         
-        // Enforce landscape aspect ratio for each image
+        // IMPORTANT: Enforce landscape aspect ratio for each image (16:9)
         const imgHeight = imgWidth / aspectRatio;
         const gap = 7;
   
-        // Calculate total height based on 4 images
+        // Calculate total height based on the number of images
         const totalHeight =
           imgHeight * collageImages.length +
           gap * (collageImages.length - 1) +
@@ -611,30 +621,11 @@ export default function CameraPage() {
           collageImages.map((img, index) => {
             return new Promise<void>((resolve) => {
               const image = document.createElement("img");
+              image.crossOrigin = "anonymous";
               image.src = img;
               image.onload = () => {
                 const imgX = padding;
                 const imgY = padding + index * (imgHeight + gap);
-  
-                // Calculate proper dimensions to maintain landscape orientation
-                let drawWidth = imgWidth;
-                let drawHeight = imgHeight;
-                
-                // If image has different aspect ratio, fit it properly
-                const imgAspect = image.width / image.height;
-                
-                // Always enforce our target aspect ratio regardless of source image
-                if (imgAspect !== aspectRatio) {
-                  // For landscape orientation, prioritize width first
-                  drawHeight = drawWidth / imgAspect;
-                  
-                  // Ensure we maintain landscape orientation (width > height)
-                  if (drawHeight > drawWidth) {
-                    // If height would be greater than width, constrain by height instead
-                    drawHeight = imgHeight;
-                    drawWidth = drawHeight * imgAspect;
-                  }
-                }
   
                 // Draw rounded corners
                 context.save();
@@ -659,10 +650,34 @@ export default function CameraPage() {
                 context.closePath();
                 context.clip();
   
-                // Draw the image with improved quality and landscape orientation
+                // Calculate source dimensions to maintain aspect ratio
+                let sourceX = 0;
+                let sourceY = 0;
+                let sourceWidth = image.width;
+                let sourceHeight = image.height;
+                
+                // Calculate the aspect ratio of the source image
+                const sourceAspect = image.width / image.height;
+                
+                // If source aspect doesn't match our target, crop the source
+                if (sourceAspect > aspectRatio) {
+                  // Source is wider than target: crop width
+                  sourceWidth = image.height * aspectRatio;
+                  sourceX = (image.width - sourceWidth) / 2;
+                } else if (sourceAspect < aspectRatio) {
+                  // Source is taller than target: crop height
+                  sourceHeight = image.width / aspectRatio;
+                  sourceY = (image.height - sourceHeight) / 2;
+                }
+                
+                // Draw the image with proper cropping to maintain exact 16:9 aspect ratio
                 context.imageSmoothingEnabled = true;
                 context.imageSmoothingQuality = "high";
-                context.drawImage(image, imgX, imgY, imgWidth, imgHeight);
+                context.drawImage(
+                  image,
+                  sourceX, sourceY, sourceWidth, sourceHeight, // Source rectangle
+                  imgX, imgY, imgWidth, imgHeight // Destination rectangle
+                );
   
                 // Add a subtle border
                 context.strokeStyle = "rgba(255,255,255,0.5)";
