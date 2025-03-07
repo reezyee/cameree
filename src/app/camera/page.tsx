@@ -418,18 +418,28 @@ export default function CameraPage() {
     }
   };
 
+  // In the renderCollage function, update your code for both layouts
+
+  // Replace your renderCollage function with this improved version
   const renderCollage = async () => {
     if (collageCanvasRef.current && collageImages.length > 0) {
       const context = collageCanvasRef.current.getContext("2d");
       if (!context) return;
-  
+
       // Get dimensions from video reference or use default
       const baseWidth = videoRef.current?.videoWidth || 640;
-      const padding = 14;
-  
+
+      // Device detection for better responsiveness
+      const screenWidth = window.innerWidth;
+      const isMobile =
+        /Mobi|Android/i.test(navigator.userAgent) || screenWidth < 768;
+
+      // Smaller padding for mobile
+      const padding = isMobile ? 8 : 12;
+
       // Define fixed landscape aspect ratio (16:9)
       const aspectRatio = 16 / 9;
-  
+
       // Helper function for contrast color
       const getContrastColor = (bgColor: string): string => {
         // Validate hex color format (e.g., #RRGGBB)
@@ -444,13 +454,13 @@ export default function CameraPage() {
             b: bigint & 255,
           };
         };
-  
+
         try {
           const { r, g, b } = hexToRgb(bgColor);
-  
+
           // Calculate perceived brightness
           const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-  
+
           // Use black text on light backgrounds, white text on dark backgrounds
           return brightness > 128 ? "black" : "white";
         } catch (error) {
@@ -458,38 +468,48 @@ export default function CameraPage() {
           return "black"; // Default fallback
         }
       };
-  
-      // Determine if we're on mobile
-      const screenWidth = window.innerWidth;
-      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      
-      // Set canvas size based on selected layout
+
+      // Calculate device pixel ratio for sharper rendering
+      const dpr = window.devicePixelRatio || 1;
+
       if (gridLayout === "2x2") {
-        // Adjust base width for mobile devices
-        const adjustedBaseWidth = isMobile ? Math.min(screenWidth - 30, baseWidth) : baseWidth;
-        
-        // 2x2 Grid layout with enforced landscape orientation for each cell
-        const totalWidth = adjustedBaseWidth + padding * 2;
-        const cellWidth = (adjustedBaseWidth / 2) - 10;
-        
-        // IMPORTANT: Enforce landscape aspect ratio (width > height)
+        // 2x2 grid layout - MOBILE OPTIMIZED
+
+        // For mobile, use nearly full width of screen minus margins
+        const adjustedBaseWidth = isMobile
+          ? Math.min(screenWidth - 32, 400) // More conservative width for mobile
+          : Math.min(baseWidth, 600);
+
+        // Use smaller gap between cells on mobile
+        const cellGap = isMobile ? 4 : 8;
+
+        // Total width including padding
+        const totalWidth = adjustedBaseWidth;
+
+        // Calculate cell width accounting for the gap
+        const cellWidth = (adjustedBaseWidth - padding * 2 - cellGap) / 2;
+
+        // Enforce landscape aspect ratio (width > height)
         const cellHeight = cellWidth / aspectRatio;
-  
-        // Calculate total height based on the aspect ratio
-        const totalHeight = cellHeight * 2 + padding * 2 + 35 + 10; // 10px gap between rows
-  
-        collageCanvasRef.current.width = totalWidth;
-        collageCanvasRef.current.height = totalHeight;
-  
+
+        // Calculate total height including a small footer area for text
+        const totalHeight = cellHeight * 2 + cellGap + padding * 2 + 30;
+
+        // Set physical size of canvas with DPR scaling for sharpness
+        collageCanvasRef.current.width = totalWidth * dpr;
+        collageCanvasRef.current.height = totalHeight * dpr;
+
+        // Set display size of canvas (CSS size)
+        collageCanvasRef.current.style.width = `${totalWidth}px`;
+        collageCanvasRef.current.style.height = `${totalHeight}px`;
+
+        // Scale context according to device pixel ratio for sharpness
+        context.scale(dpr, dpr);
+
         // Clear canvas and set background
         context.fillStyle = backgroundColor;
-        context.fillRect(
-          0,
-          0,
-          collageCanvasRef.current.width,
-          collageCanvasRef.current.height
-        );
-  
+        context.fillRect(0, 0, totalWidth, totalHeight);
+
         // Draw images in a 2x2 grid with consistent landscape orientation
         await Promise.all(
           collageImages.map((img, index) => {
@@ -500,165 +520,44 @@ export default function CameraPage() {
               image.onload = () => {
                 const row = Math.floor(index / 2);
                 const col = index % 2;
-                const x = col * (cellWidth + 15) + padding;
-                const y = row * (cellHeight + 10) + padding;
-  
-                // Draw rounded corners
+
+                // Calculate position with padding and gap
+                const x = padding + col * (cellWidth + cellGap);
+                const y = padding + row * (cellHeight + cellGap);
+
+                // Draw rounded corners - smaller radius on mobile
+                const cornerRadius = isMobile ? 6 : 8;
                 context.save();
                 context.beginPath();
-                context.moveTo(x + 10, y);
+                context.moveTo(x + cornerRadius, y);
                 context.arcTo(
                   x + cellWidth,
                   y,
                   x + cellWidth,
                   y + cellHeight,
-                  10
+                  cornerRadius
                 );
                 context.arcTo(
                   x + cellWidth,
                   y + cellHeight,
                   x,
                   y + cellHeight,
-                  10
+                  cornerRadius
                 );
-                context.arcTo(x, y + cellHeight, x, y, 10);
-                context.arcTo(x, y, x + cellWidth, y, 10);
+                context.arcTo(x, y + cellHeight, x, y, cornerRadius);
+                context.arcTo(x, y, x + cellWidth, y, cornerRadius);
                 context.closePath();
                 context.clip();
-  
-                // Create an off-screen canvas for proper image processing
-                const offscreenCanvas = document.createElement('canvas');
-                const offCtx = offscreenCanvas.getContext('2d');
-                
-                if (offCtx) {
-                  // Calculate source dimensions to maintain aspect ratio
-                  let sourceX = 0;
-                  let sourceY = 0;
-                  let sourceWidth = image.width;
-                  let sourceHeight = image.height;
-                  
-                  // Calculate the aspect ratio of the source image
-                  const sourceAspect = image.width / image.height;
-                  
-                  // If source aspect doesn't match our target, crop the source
-                  if (sourceAspect > aspectRatio) {
-                    // Source is wider than target: crop width
-                    sourceWidth = image.height * aspectRatio;
-                    sourceX = (image.width - sourceWidth) / 2;
-                  } else if (sourceAspect < aspectRatio) {
-                    // Source is taller than target: crop height
-                    sourceHeight = image.width / aspectRatio;
-                    sourceY = (image.height - sourceHeight) / 2;
-                  }
-                  
-                  // Draw the image with proper cropping to maintain exact 16:9 aspect ratio
-                  context.imageSmoothingEnabled = true;
-                  context.imageSmoothingQuality = "high";
-                  context.drawImage(
-                    image,
-                    sourceX, sourceY, sourceWidth, sourceHeight, // Source
-                    x, y, cellWidth, cellHeight // Destination
-                  );
-                } else {
-                  // Fallback if offscreen canvas fails
-                  context.drawImage(image, x, y, cellWidth, cellHeight);
-                }
-  
-                // Add a subtle border
-                context.strokeStyle = "rgba(255,255,255,0.5)";
-                context.lineWidth = 3;
-                context.stroke();
-  
-                context.restore();
-                resolve();
-              };
-            });
-          })
-        );
-  
-        // Determine text color based on background
-        const textColor = getContrastColor(backgroundColor);
-  
-        // Add "Caméree - Photo Booth" text
-        const text = "Caméree - Photo Booth";
-        context.font = "bold 28px Arial";
-        context.fillStyle = textColor;
-        context.textAlign = "center";
-        context.textBaseline = "bottom";
-  
-        // Position text at the bottom center
-        const textX = collageCanvasRef.current.width / 2;
-        const textY = collageCanvasRef.current.height - 20;
-  
-        // Draw text on canvas
-        context.fillText(text, textX, textY);
-      } else {
-        // 4x1 Vertical layout with landscape photos
-        // Adjust width for mobile devices
-        const maxWidth = isMobile ? Math.min(screenWidth - 30, baseWidth) : baseWidth;
-        const imgWidth = Math.min(maxWidth * 0.85, 520);
-        
-        // IMPORTANT: Enforce landscape aspect ratio for each image (16:9)
-        const imgHeight = imgWidth / aspectRatio;
-        const gap = 7;
-  
-        // Calculate total height based on the number of images
-        const totalHeight =
-          imgHeight * collageImages.length +
-          gap * (collageImages.length - 1) +
-          padding * 2 +
-          35;
-  
-        collageCanvasRef.current.width = imgWidth + padding * 2;
-        collageCanvasRef.current.height = totalHeight;
-  
-        // Clear canvas and set background
-        context.fillStyle = backgroundColor;
-        context.fillRect(0, 0, collageCanvasRef.current.width, totalHeight);
-  
-        // Draw images stacked vertically but each with landscape orientation
-        await Promise.all(
-          collageImages.map((img, index) => {
-            return new Promise<void>((resolve) => {
-              const image = document.createElement("img");
-              image.crossOrigin = "anonymous";
-              image.src = img;
-              image.onload = () => {
-                const imgX = padding;
-                const imgY = padding + index * (imgHeight + gap);
-  
-                // Draw rounded corners
-                context.save();
-                context.beginPath();
-                context.moveTo(imgX + 10, imgY);
-                context.arcTo(
-                  imgX + imgWidth,
-                  imgY,
-                  imgX + imgWidth,
-                  imgY + imgHeight,
-                  10
-                );
-                context.arcTo(
-                  imgX + imgWidth,
-                  imgY + imgHeight,
-                  imgX,
-                  imgY + imgHeight,
-                  10
-                );
-                context.arcTo(imgX, imgY + imgHeight, imgX, imgY, 10);
-                context.arcTo(imgX, imgY, imgX + imgWidth, imgY, 10);
-                context.closePath();
-                context.clip();
-  
+
                 // Calculate source dimensions to maintain aspect ratio
                 let sourceX = 0;
                 let sourceY = 0;
                 let sourceWidth = image.width;
                 let sourceHeight = image.height;
-                
+
                 // Calculate the aspect ratio of the source image
                 const sourceAspect = image.width / image.height;
-                
+
                 // If source aspect doesn't match our target, crop the source
                 if (sourceAspect > aspectRatio) {
                   // Source is wider than target: crop width
@@ -669,48 +568,227 @@ export default function CameraPage() {
                   sourceHeight = image.width / aspectRatio;
                   sourceY = (image.height - sourceHeight) / 2;
                 }
-                
-                // Draw the image with proper cropping to maintain exact 16:9 aspect ratio
+
+                // Enable high quality image rendering
                 context.imageSmoothingEnabled = true;
                 context.imageSmoothingQuality = "high";
+
+                // Draw the image with proper cropping to maintain exact 16:9 aspect ratio
                 context.drawImage(
                   image,
-                  sourceX, sourceY, sourceWidth, sourceHeight, // Source rectangle
-                  imgX, imgY, imgWidth, imgHeight // Destination rectangle
+                  sourceX,
+                  sourceY,
+                  sourceWidth,
+                  sourceHeight, // Source
+                  x,
+                  y,
+                  cellWidth,
+                  cellHeight // Destination
                 );
-  
-                // Add a subtle border
-                context.strokeStyle = "rgba(255,255,255,0.5)";
-                context.lineWidth = 3;
+
+                // Add a subtle border - thinner on mobile
+                context.strokeStyle = "rgba(255,255,255,0.6)";
+                context.lineWidth = isMobile ? 1 : 1.5;
                 context.stroke();
-  
+
                 context.restore();
+                resolve();
+              };
+
+              // Add error handling
+              image.onerror = () => {
+                console.error("Failed to load image:", img);
                 resolve();
               };
             });
           })
         );
-  
-        // Determine text color based on background
+
+        // Text rendering code for 2x2 layout
         const textColor = getContrastColor(backgroundColor);
-  
-        // Add "Caméree - Photo Booth" text
         const text = "Caméree - Photo Booth";
-        context.font = "bold 20px Arial";
+
+        // Smaller font on mobile
+        context.font = `bold ${isMobile ? "14px" : "16px"} Arial, sans-serif`;
         context.fillStyle = textColor;
         context.textAlign = "center";
         context.textBaseline = "bottom";
-  
+
+        // Very subtle text shadow for legibility
+        context.shadowColor =
+          textColor === "white" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)";
+        context.shadowBlur = 2;
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
+
         // Position text at the bottom center
-        const textX = collageCanvasRef.current.width / 2;
-        const textY = collageCanvasRef.current.height - 20;
-  
+        const textX = totalWidth / 2;
+        const textY = totalHeight - 10;
+
         // Draw text on canvas
         context.fillText(text, textX, textY);
+
+        // Reset shadow
+        context.shadowColor = "transparent";
+        context.shadowBlur = 0;
+      } else {
+        // 4x1 Vertical layout
+
+        // Adjust width based on device - narrower on mobile
+        const maxWidth = isMobile
+          ? Math.min(screenWidth * 0.9, 320) // Use more screen width on mobile
+          : 400;
+
+        // Calculate the actual image width accounting for padding
+        const imgWidth = maxWidth - padding * 2;
+
+        // CRITICALLY IMPORTANT: Calculate height based on landscape aspect ratio
+        const imgHeight = imgWidth / aspectRatio;
+
+        // Smaller space between images on mobile
+        const gap = isMobile ? 6 : 8;
+
+        // Calculate total canvas height
+        const totalHeight =
+          padding * 2 +
+          imgHeight * collageImages.length +
+          gap * (collageImages.length - 1) +
+          30; // Space for text
+
+        // Set physical canvas dimensions with DPR scaling
+        collageCanvasRef.current.width = maxWidth * dpr;
+        collageCanvasRef.current.height = totalHeight * dpr;
+
+        // Set display dimensions (CSS)
+        collageCanvasRef.current.style.width = `${maxWidth}px`;
+        collageCanvasRef.current.style.height = `${totalHeight}px`;
+
+        // Scale context based on DPR
+        context.scale(dpr, dpr);
+
+        // Fill background
+        context.fillStyle = backgroundColor;
+        context.fillRect(0, 0, maxWidth, totalHeight);
+
+        // Draw each image
+        await Promise.all(
+          collageImages.map((img, index) => {
+            return new Promise<void>((resolve) => {
+              const image = document.createElement("img");
+              image.crossOrigin = "anonymous";
+              image.src = img;
+              image.onload = () => {
+                // Calculate image position
+                const imgX = padding;
+                const imgY = padding + index * (imgHeight + gap);
+
+                // Apply rounded corners - smaller on mobile
+                const cornerRadius = isMobile ? 6 : 8;
+                context.save();
+                context.beginPath();
+                context.moveTo(imgX + cornerRadius, imgY);
+                context.arcTo(
+                  imgX + imgWidth,
+                  imgY,
+                  imgX + imgWidth,
+                  imgY + imgHeight,
+                  cornerRadius
+                );
+                context.arcTo(
+                  imgX + imgWidth,
+                  imgY + imgHeight,
+                  imgX,
+                  imgY + imgHeight,
+                  cornerRadius
+                );
+                context.arcTo(imgX, imgY + imgHeight, imgX, imgY, cornerRadius);
+                context.arcTo(imgX, imgY, imgX + imgWidth, imgY, cornerRadius);
+                context.closePath();
+                context.clip();
+
+                // Calculate source dimensions to maintain aspect ratio
+                let sourceX = 0;
+                let sourceY = 0;
+                let sourceWidth = image.width;
+                let sourceHeight = image.height;
+
+                // Calculate the aspect ratio of the source image
+                const sourceAspect = image.width / image.height;
+
+                // If source aspect doesn't match our target, crop the source
+                if (sourceAspect > aspectRatio) {
+                  // Source is wider than target: crop width
+                  sourceWidth = image.height * aspectRatio;
+                  sourceX = (image.width - sourceWidth) / 2;
+                } else if (sourceAspect < aspectRatio) {
+                  // Source is taller than target: crop height
+                  sourceHeight = image.width / aspectRatio;
+                  sourceY = (image.height - sourceHeight) / 2;
+                }
+
+                // High quality rendering
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = "high";
+
+                // Draw the image with proper cropping to maintain aspect ratio
+                context.drawImage(
+                  image,
+                  sourceX,
+                  sourceY,
+                  sourceWidth,
+                  sourceHeight, // Source rectangle
+                  imgX,
+                  imgY,
+                  imgWidth,
+                  imgHeight // Destination rectangle
+                );
+
+                // Add subtle border - thinner on mobile
+                context.strokeStyle = "rgba(255,255,255,0.5)";
+                context.lineWidth = isMobile ? 1 : 1.5;
+                context.stroke();
+
+                context.restore();
+                resolve();
+              };
+
+              // Add error handling
+              image.onerror = () => {
+                console.error("Failed to load image:", img);
+                resolve();
+              };
+            });
+          })
+        );
+
+        // Add watermark text
+        const textColor = getContrastColor(backgroundColor);
+        const text = "Caméree - Photo Booth";
+
+        // Smaller font on mobile
+        context.font = `bold ${isMobile ? "14px" : "16px"} Arial, sans-serif`;
+        context.fillStyle = textColor;
+        context.textAlign = "center";
+        context.textBaseline = "bottom";
+
+        // Add slight shadow for better text readability
+        context.shadowColor =
+          textColor === "white" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)";
+        context.shadowBlur = 2;
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
+
+        // Position text at the bottom
+        const textX = maxWidth / 2;
+        const textY = totalHeight - 10;
+
+        context.fillText(text, textX, textY);
+        context.shadowColor = "transparent";
+        context.shadowBlur = 0;
       }
     }
   };
-  
+
   const capturePhotoSeries = () => {
     setIsCapturing(true);
     setCollageImages([]);
@@ -756,10 +834,38 @@ export default function CameraPage() {
 
   const downloadCollage = () => {
     if (collageCanvasRef.current && collageImages.length > 0) {
-      const link = document.createElement("a");
-      link.href = collageCanvasRef.current.toDataURL("image/png");
-      link.download = "cameree-collage.png";
-      link.click();
+      try {
+        // Get canvas and create filename with timestamp
+        const canvas = collageCanvasRef.current;
+        const fileName = `cameree-collage-${new Date().getTime()}.png`;
+
+        // Convert to data URL with high quality
+        const dataURL = canvas.toDataURL("image/png", 1.0);
+
+        // Check if running on iOS
+        const isIOS =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.userAgent.includes("Mac") && "ontouchend" in window);
+
+        if (isIOS) {
+          // iOS handling - open in new window for manual saving
+          alert("Please take a screenshot of your collage to save it");
+          window.open(dataURL);
+        } else {
+          // Standard download for other platforms
+          const link = document.createElement("a");
+          link.download = fileName;
+          link.href = dataURL;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (error) {
+        console.error("Error downloading collage:", error);
+        alert("Failed to download. Please try taking a screenshot instead.");
+      }
+    } else {
+      alert("Please capture images first before downloading.");
     }
   };
 
@@ -958,7 +1064,7 @@ export default function CameraPage() {
                   ref={collageCanvasRef}
                   className={`
                     rounded-xl shadow-lg
-                    ${gridLayout === "4x1" ? "max-w-xs" : "w-full"}
+                    ${gridLayout === "4x1" ? "w-xs" : "w-full"}
                   `}
                 />
               </div>
