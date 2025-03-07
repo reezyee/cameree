@@ -50,8 +50,9 @@ export default function CameraPage() {
   };
 
   const getOptimalResolution = () => {
-    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const screenWidth = window.innerWidth;
+    const isMobile =
+      /Mobi|Android/i.test(navigator.userAgent) || screenWidth < 640;
 
     if (!isMobile && screenWidth >= 2560) {
       // Laptop/PC resolusi tinggi (4K/2K)
@@ -477,11 +478,11 @@ export default function CameraPage() {
 
         // For mobile, use nearly full width of screen minus margins
         const adjustedBaseWidth = isMobile
-          ? Math.min(screenWidth - 32, 400) // More conservative width for mobile
+          ? Math.min(screenWidth - 40, 320) // Reduced width for mobile
           : Math.min(baseWidth, 600);
 
         // Use smaller gap between cells on mobile
-        const cellGap = isMobile ? 4 : 8;
+        const cellGap = isMobile ? 2 : 8;
 
         // Total width including padding
         const totalWidth = adjustedBaseWidth;
@@ -493,7 +494,8 @@ export default function CameraPage() {
         const cellHeight = cellWidth / aspectRatio;
 
         // Calculate total height including a small footer area for text
-        const totalHeight = cellHeight * 2 + cellGap + padding * 2 + 30;
+        const totalHeight =
+          cellHeight * 2 + cellGap + padding * 2 + (isMobile ? 20 : 30);
 
         // Set physical size of canvas with DPR scaling for sharpness
         collageCanvasRef.current.width = totalWidth * dpr;
@@ -903,7 +905,7 @@ export default function CameraPage() {
         </motion.h1>
       </header>
 
-      <div className="flex-grow container mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
+      <div className="flex-grow container mx-auto px-2 sm:px-4 py-4 sm:py-8 grid md:grid-cols-2 gap-4 sm:gap-8">
         {/* Camera Section */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -912,7 +914,7 @@ export default function CameraPage() {
           className="bg-[#c7c1b9] border-t border-gray-300/70 backdrop-blur-lg rounded-2xl p-6 shadow-xl"
         >
           {/* Camera Preview */}
-          <div className="relative rounded-xl overflow-hidden border-4 border-[#153378] shadow-2xl">
+          <div className="relative rounded-xl overflow-hidden border-2 sm:border-4 border-[#153378] shadow-2xl">
             <video
               ref={videoRef}
               autoPlay
@@ -949,28 +951,27 @@ export default function CameraPage() {
           {/* Controls */}
           <div className="mt-6 space-y-4">
             {/* Filter Buttons */}
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-1 sm:gap-2">
               {filters.map(({ id, label, src }) => (
                 <button
                   key={id}
                   onClick={() => setFilter(id)}
-                  className={`overflow-hidden w-16 rounded-full ${
+                  className={`overflow-hidden w-12 sm:w-16 rounded-full ${
                     filter === id
-                      ? "border-4 border-[#153378]"
+                      ? "border-3 sm:border-4 border-[#153378]"
                       : "border-2 border-[#c7c1b6] hover:border-[#bdb7ae]"
                   } transition-all duration-300 ease-in-out`}
                 >
                   <Image
                     src={src as string}
                     alt={label}
-                    width={64} // Sesuaikan dengan ukuran gambar
+                    width={64}
                     height={64}
                     className="w-full h-auto object-cover"
                   />
                 </button>
               ))}
             </div>
-
             {/* Action Buttons */}
             <div className="grid grid-cols-3 gap-2">
               <Button
@@ -1059,11 +1060,11 @@ export default function CameraPage() {
               <h3 className="text-xl font-bold mb-4 text-center text-gray-700">
                 Collage Preview
               </h3>
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-4 overflow-hidden">
                 <canvas
                   ref={collageCanvasRef}
                   className={`
-                    rounded-xl shadow-lg
+                    rounded-xl shadow-lg max-w-full
                     ${gridLayout === "4x1" ? "w-xs" : "w-full"}
                   `}
                 />
