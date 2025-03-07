@@ -1045,7 +1045,7 @@ export default function CameraPage() {
           className="bg-[#c7c1b9] border-t border-gray-300/70 backdrop-blur-lg rounded-2xl p-6 shadow-xl"
         >
           {collageImages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-[#153378]">
+            <div className="h-full w-screen flex flex-col items-center justify-center text-center text-[#153378]">
               <Camera className="w-24 h-24 text-[#153378]" strokeWidth={1} />
               <h2 className="text-2xl font-bold mb-2">Ready to Capture</h2>
               <p className="text-sm">
