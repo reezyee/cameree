@@ -1,40 +1,64 @@
-<<<<<<< HEAD
-# cameree
-=======
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Caméree v2.0.0
 
-## Getting Started
+A modern photo booth with a vintage soul — combining real-time filters, retro aesthetics, and instant memories.
 
-First, run the development server:
+Caméree transforms your device into an elegant, intuitive photo booth experience with live effects, collage modes, and instant saving. Built for creators, events, and anyone who loves capturing beautiful moments effortlessly.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎉 What's New in v2.0.0
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Caméree 2.0.0 introduces a redesigned UI, improved performance, and adding themes for collage backgounds.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### ✨ Major Updates
 
-## Learn More
+* Completely redesigned Hero & Feature layout with improved spacing and visual hierarchy
+*  
 
-To learn more about Next.js, take a look at the following resources:
+  Added multiple themes for collage backgrounds
+*  
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+  Improved feature cards with smoother animations and better contrast
+*  Modernized button styles and hover transitions
+*  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+  Changed appearance and animations
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📸 Features
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
->>>>>>> 66dff00 (version 1.0)
+### 🔮 Live Vintage Filters
+
+Real-time sepia, B&W, retro, and infrared effects that bring a nostalgic look to your photos.
+
+### 🧩 Photo Booth Mode
+
+Create **4-shot strips, 2x1** or **2×2 grid collages** with custom overlays for a film-inspired aesthetic.
+
+### ⚡ Instant Save
+
+Download your collage instantly — no waiting, no complexity.
+
+---
+
+## 🛠 Tech Stack
+
+* **Next.js**
+* **React**
+* **Tailwind CSS**
+* **Framer Motion**
+* **Lucide Icons**
+
+---
+
+## ❤️ Credits
+
+Caméree v2.0.0 by [Reezyee](https://reezyee.github.io)
+
+
+ 
+
+Open **[https://cameree.vercel.app](https://cameree.vercel.app)** to start capturing!
+
+  
