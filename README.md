@@ -13,16 +13,10 @@ Caméree 2.0.0 introduces a redesigned UI, improved performance, and adding them
 ### ✨ Major Updates
 
 * Completely redesigned Hero & Feature layout with improved spacing and visual hierarchy
-*  
-
-  Added multiple themes for collage backgrounds
-*  
-
-  Improved feature cards with smoother animations and better contrast
+*  Added multiple themes for collage backgrounds
+*  Improved feature cards with smoother animations and better contrast
 *  Modernized button styles and hover transitions
-*  
-
-  Changed appearance and animations
+*  Changed appearance and animations
 
 ---
 
