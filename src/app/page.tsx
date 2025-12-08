@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Camera, Filter, Download } from "lucide-react";
+import { Camera } from "lucide-react";
 
 // ==================== SPLASH SCREEN ====================
 function FilmStripSplash({ onFinish }: { onFinish: () => void }) {
@@ -92,7 +92,7 @@ function FilmStripSplash({ onFinish }: { onFinish: () => void }) {
 }
 
 // ==================== VINTAGE FILM STRIP VERTIKAL (2-3 FRAME) ====================
-function VintageFilmStrip({ half = false, reverse = false }: { half?: boolean; reverse?: boolean }) {
+function VintageFilmStrip({ half = false }: { half?: boolean; reverse?: boolean }) {
   const frames = half ? 3 : 8;
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -13,25 +13,44 @@ export default function CameraPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const liveFilterCanvasRef = useRef<HTMLCanvasElement>(null);
   const collageCanvasRef = useRef<HTMLCanvasElement>(null);
+
   const [selectedBackground, setSelectedBackground] = useState<{
     src: string;
     overlayPackId: string;
   } | null>(null);
-  type FilterType = {
-    id: "none" | "grayscale" | "sepia" | "retro" | "infrared";
-    label: string;
-    src: string;
-  };
-  const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
+
+  type FilterType = "none" | "grayscale" | "sepia" | "retro" | "pastel";
+  const [filter, setFilter] = useState<FilterType>("none");
+
   const [selectedOverlayPack, setSelectedOverlayPack] =
     useState<string>("none");
-  const filters: FilterType[] = [
+  const [collageImages, setCollageImages] = useState<string[]>([]);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [isMirrored, setIsMirrored] = useState<boolean>(true);
+  const [backgroundColor, setBackgroundColor] = useState<string>("#f5e6d8");
+  const [backgroundMode, setBackgroundMode] = useState<"color" | "image">(
+    "color"
+  );
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [countdownValue, setCountdownValue] = useState<number | null>(null);
+  const [gridLayout, setGridLayout] = useState<"2x2" | "4x1" | "2x1">("4x1");
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">(
+    "landscape"
+  );
+  const [isPortraitModeForced, setIsPortraitModeForced] =
+    useState<boolean>(false);
+
+  const isCaptureLocked = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const filters = [
     { id: "none", label: "No Filter", src: "/filters/no-filter.jpeg" },
     { id: "grayscale", label: "B&W", src: "/filters/B&W.jpeg" },
     { id: "sepia", label: "Sepia", src: "/filters/sepia.jpeg" },
     { id: "retro", label: "Retro", src: "/filters/retro.png" },
-    { id: "infrared", label: "Infrared", src: "/filters/infrared.png" },
-  ];
+    { id: "pastel", label: "Pastel", src: "/filters/pastel.jpg" },
+  ] as const;
+
   const backgroundPresets = [
     {
       src: "/images/billieeilish.jpg",
@@ -53,359 +72,19 @@ export default function CameraPage() {
     },
   ];
 
-  const [filter, setFilter] = useState<FilterType["id"]>("none");
-  const [collageImages, setCollageImages] = useState<string[]>([]);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
-  const [isMirrored, setIsMirrored] = useState<boolean>(true);
-  const [backgroundColor, setBackgroundColor] = useState<string>("#f5e6d8");
-  const [backgroundMode, setBackgroundMode] = useState<"color" | "image">(
-    "color"
-  );
-  const [isCapturing, setIsCapturing] = useState<boolean>(false);
-  const isCaptureLocked = useRef(false);
-  const [countdownValue, setCountdownValue] = useState<number | null>(null);
-  const [gridLayout, setGridLayout] = useState<"2x2" | "4x1" | "2x1">("4x1");
-  const animationFrameRef = useRef<number | null>(null);
-  const [orientation, setOrientation] = useState<"portrait" | "landscape">(
-    "landscape"
-  );
-  const [isPortraitModeForced, setIsPortraitModeForced] =
-    useState<boolean>(false);
-
-  const checkCameraPermissions = async () => {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const hasCamera = devices.some((device) => device.kind === "videoinput");
-
-      if (!hasCamera) {
-        alert("No camera found. Please connect a camera device.");
-      }
-    } catch (error) {
-      console.error("Error checking camera permissions:", error);
-    }
-  };
-
-  const getOptimalResolution = () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const isPortraitMode = orientation === "portrait";
-
-    // Deteksi device high-end (iPhone 12+, Samsung S21+, Pixel 6+, dll)
-    const isHighEndPhone =
-      /iPhone|iPad|Pixel|Galaxy S2[1-9]|Galaxy Note2[0-9]/i.test(
-        navigator.userAgent
-      ) ||
-      (width >= 1080 && window.devicePixelRatio >= 2);
-
-    if (isPortraitMode) {
-      // PORTRAIT — RESOLUSI TINGGI KHUSUS HP
-      if (isHighEndPhone) {
-        return { width: { ideal: 1080 }, height: { ideal: 1920 } }; // 1080p potret → super tajam
-      } else {
-        return { width: { ideal: 1080 }, height: { ideal: 1440 } }; // 1080×1440 (masih tajam, lebih ringan)
-      }
-    }
-
-    // LANDSCAPE (tablet / desktop / HP diputar)
-    if (width >= 2560)
-      return { width: { ideal: 3840 }, height: { ideal: 2160 } };
-    if (width >= 1920)
-      return { width: { ideal: 1920 }, height: { ideal: 1080 } };
-    if (width >= 1280)
-      return { width: { ideal: 1280 }, height: { ideal: 720 } };
-    return { width: { ideal: 720 }, height: { ideal: 480 } };
-  };
-
-  const startCamera = async () => {
-    try {
-      console.log("Starting camera...");
-
-      // Hentikan stream yang sudah ada
-      if (videoRef.current?.srcObject) {
-        (videoRef.current.srcObject as MediaStream)
-          .getTracks()
-          .forEach((track) => track.stop());
-      }
-
-      const constraints = {
-        video: {
-          facingMode,
-          width: {
-            min: 720,
-            ideal: orientation === "portrait" ? 1080 : 1920,
-            max: 3840,
-          },
-          height: {
-            min: 720,
-            ideal: orientation === "portrait" ? 1920 : 1080,
-            max: 2160,
-          },
-          frameRate: { ideal: 30, max: 60 },
-          aspectRatio: orientation === "portrait" ? 4 / 5 : 16 / 9,
-        },
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await new Promise((resolve) => {
-          videoRef.current!.onloadedmetadata = () => {
-            videoRef.current?.play();
-            startLiveFilterPreview();
-            resolve(null);
-          };
-        });
-
-        console.log("Camera started successfully.");
-      }
-    } catch (error) {
-      console.error("Error starting camera:", error);
-      alert("Gagal mengakses kamera: " + (error as Error).message);
-    }
-  };
-
-  // Stop the animation frame when component unmounts
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    checkCameraPermissions();
-    startCamera();
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      const videoDevices = devices.filter(
-        (device) => device.kind === "videoinput"
-      );
-      console.log("Available video devices:", videoDevices);
-    });
-  }, [facingMode]);
-
-  // Reset animation frame when filter changes
-  useEffect(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      startLiveFilterPreview();
-    }
-  }, [filter, isMirrored]);
-
-  // Effect to update the collage canvas whenever collageImages or layout changes
-  useEffect(() => {
-    if (collageImages.length > 0) {
-      renderCollage();
-    }
-  }, [
-    collageImages,
-    backgroundColor,
-    gridLayout,
-    selectedBackground,
-    orientation,
-  ]);
-
-  const applyThermalInfraredFilter = (
-    context: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement
-  ) => {
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      // Ambil nilai RGB
-      const red = data[i];
-      const green = data[i + 1];
-      const blue = data[i + 2];
-
-      // Hitung kecerahan menggunakan rumus luminance
-      const brightness = 0.299 * red + 0.587 * green + 0.114 * blue;
-
-      // Perbaiki gradasi efek thermal imaging
-      if (brightness < 50) {
-        // Sangat dingin (biru tua)
-        data[i] = 40; // Red
-        data[i + 1] = 0; // Green
-        data[i + 2] = 90; // Blue
-      } else if (brightness < 100) {
-        // Dingin (ungu kebiruan)
-        data[i] = 80; // Red
-        data[i + 1] = 20; // Green
-        data[i + 2] = 150; // Blue
-      } else if (brightness < 150) {
-        // Hangat (merah muda ke merah)
-        data[i] = 180; // Red
-        data[i + 1] = 50; // Green
-        data[i + 2] = 80; // Blue
-      } else if (brightness < 200) {
-        // Panas (oranye lembut)
-        data[i] = 240; // Red
-        data[i + 1] = 140; // Green
-        data[i + 2] = 30; // Blue
-      } else {
-        // Sangat panas (kuning ke putih)
-        data[i] = 255; // Red
-        data[i + 1] = 220; // Green
-        data[i + 2] = 120; // Blue
-      }
-
-      // Pertahankan transparansi (jika ada kanal alpha)
-      data[i + 3] = data[i + 3];
-    }
-
-    context.putImageData(imageData, 0, 0);
-  };
-
-  useEffect(() => {
-    const updateOrientation = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const isPortraitScreen = height > width;
-
-      // Jika user memaksa portrait mode → paksa portrait
-      if (isPortraitModeForced) {
-        setOrientation("portrait");
-        // Mirror hanya untuk kamera depan
-        setIsMirrored(facingMode === "user");
-        return;
-      }
-
-      // Jika tidak dipaksa → ikuti rotasi device / window
-      const isRealMobile =
-        /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        );
-      const isLikelyDesktopOrTablet = width > 768;
-
-      if (isRealMobile && isPortraitScreen && !isLikelyDesktopOrTablet) {
-        setOrientation("portrait");
-      } else {
-        setOrientation("landscape");
-      }
-
-      // Mirror logic tetap sama
-      setIsMirrored(facingMode === "user");
-    };
-
-    updateOrientation();
-    window.addEventListener("resize", updateOrientation);
-    window.addEventListener("orientationchange", updateOrientation);
-
-    return () => {
-      window.removeEventListener("resize", updateOrientation);
-      window.removeEventListener("orientationchange", updateOrientation);
-    };
-  }, [facingMode, isPortraitModeForced]); // Tambahkan isPortraitModeForced
-
-  const applyRetroVintageFilter = async (
-    context: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement
-  ) => {
-    const imageBitmap = await createImageBitmap(canvas);
-    context.drawImage(imageBitmap, 0, 0);
-
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    // Apply warm tones and vintage color shift
-    for (let i = 0; i < data.length; i += 4) {
-      // Get RGB values
-      let r = data[i];
-      let g = data[i + 1];
-      let b = data[i + 2];
-
-      // Warm vintage tone - boost reds and yellows, reduce blues
-      r = Math.min(255, r * 1.15); // Boost red channel
-      g = Math.min(255, g * 1.05); // Slightly boost green channel
-      b = Math.max(0, b * 0.85); // Reduce blue channel
-
-      // Apply slight color cross-processing effect (popular in vintage photos)
-      // Adjust shadows to have more cyan/blue, highlights to have more yellow/red
-      const brightness = (r + g + b) / 3;
-
-      if (brightness < 128) {
-        // Shadows get cooler blue tint
-        b = Math.min(255, b * 1.1);
-      } else {
-        // Highlights get warmer yellow/red tint
-        r = Math.min(255, r * 1.1);
-        g = Math.min(255, g * 1.05);
-      }
-
-      // Apply slight contrast boost
-      r = r < 128 ? r * 0.95 : r * 1.05;
-      g = g < 128 ? g * 0.95 : g * 1.05;
-      b = b < 128 ? b * 0.95 : b * 1.05;
-
-      // Update values
-      data[i] = r;
-      data[i + 1] = g;
-      data[i + 2] = b;
-    }
-
-    // Apply grain effect
-    for (let i = 0; i < data.length; i += 4) {
-      // Add random noise to create film grain effect
-      // Less noise in highlights, more in shadows
-      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      const noise = Math.random() * 20 - 10; // Random value between -10 and 10
-      const noiseAmount = Math.max(0, 15 - brightness / 25); // More noise in darker areas
-
-      data[i] = Math.min(
-        255,
-        Math.max(0, data[i] + noise * (noiseAmount / 15))
-      );
-      data[i + 1] = Math.min(
-        255,
-        Math.max(0, data[i + 1] + noise * (noiseAmount / 15))
-      );
-      data[i + 2] = Math.min(
-        255,
-        Math.max(0, data[i + 2] + noise * (noiseAmount / 15))
-      );
-    }
-
-    // Apply slight vignette effect (darkened corners)
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
-
-    for (let y = 0; y < canvas.height; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const idx = (y * canvas.width + x) * 4;
-
-        // Calculate distance from center (normalized 0-1)
-        const distX = x - centerX;
-        const distY = y - centerY;
-        const distance = Math.sqrt(distX * distX + distY * distY) / maxDistance;
-
-        // Apply stronger vignette to corners
-        const vignetteAmount = Math.pow(distance, 1.5) * 0.6; // Adjustable vignette strength
-
-        // Darken pixels based on distance from center
-        data[idx] = data[idx] * (1 - vignetteAmount);
-        data[idx + 1] = data[idx + 1] * (1 - vignetteAmount);
-        data[idx + 2] = data[idx + 2] * (1 - vignetteAmount);
-      }
-    }
-
-    context.putImageData(imageData, 0, 0);
-  };
-
-  const startLiveFilterPreview = () => {
+  // =============== LIVE FILTER ===============
+  const startLiveFilterPreview = useCallback(() => {
     if (!videoRef.current || !liveFilterCanvasRef.current) return;
 
-    const processFrame = () => {
-      const video = videoRef.current;
-      const canvas = liveFilterCanvasRef.current;
+    const process = () => {
+      const video = videoRef.current!;
+      const canvas = liveFilterCanvasRef.current!;
 
-      if (!video || !canvas || video.readyState !== 4) {
-        animationFrameRef.current = requestAnimationFrame(processFrame);
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+        animationFrameRef.current = requestAnimationFrame(process);
         return;
       }
 
-      // Set canvas size to match video
       if (
         canvas.width !== video.videoWidth ||
         canvas.height !== video.videoHeight
@@ -414,114 +93,242 @@ export default function CameraPage() {
         canvas.height = video.videoHeight;
       }
 
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) {
-        animationFrameRef.current = requestAnimationFrame(processFrame);
-        return;
-      }
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
 
-      // Clear canvas
-      context.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw video frame
-      context.save();
-
-      // Apply mirror if needed
+      ctx.save();
       if (isMirrored) {
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
       }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
 
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      context.restore();
-
-      // Apply filter if not "none"
-      if (filter === "infrared") {
-        applyThermalInfraredFilter(context, canvas);
-      } else if (filter === "grayscale") {
-        const imageData = context.getImageData(
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const avg =
-            (imageData.data[i] +
-              imageData.data[i + 1] +
-              imageData.data[i + 2]) /
-            3;
-          imageData.data[i] = avg; // Red
-          imageData.data[i + 1] = avg; // Green
-          imageData.data[i + 2] = avg; // Blue
+      if (filter === "grayscale") {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const avg = (d[i] + d[i + 1] + d[i + 2]) / 3;
+          d[i] = d[i + 1] = d[i + 2] = avg;
         }
-        context.putImageData(imageData, 0, 0);
+        ctx.putImageData(imgData, 0, 0);
       } else if (filter === "sepia") {
-        const imageData = context.getImageData(
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-
-          imageData.data[i] = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189); // Red
-          imageData.data[i + 1] = Math.min(
-            255,
-            r * 0.349 + g * 0.686 + b * 0.168
-          ); // Green
-          imageData.data[i + 2] = Math.min(
-            255,
-            r * 0.272 + g * 0.534 + b * 0.131
-          ); // Blue
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i],
+            g = d[i + 1],
+            b = d[i + 2];
+          d[i] = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+          d[i + 1] = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+          d[i + 2] = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
         }
-        context.putImageData(imageData, 0, 0);
+        ctx.putImageData(imgData, 0, 0);
       } else if (filter === "retro") {
-        applyRetroVintageFilter(context, canvas);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          d[i] = Math.min(255, d[i] * 1.15);
+          d[i + 1] = Math.min(255, d[i + 1] * 1.05);
+          d[i + 2] = Math.max(0, d[i + 2] * 0.85);
+        }
+        ctx.putImageData(imgData, 0, 0);
+      } else if (filter === "pastel") {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const avg = (d[i] + d[i + 1] + d[i + 2]) / 3;
+          d[i] = avg + (d[i] - avg) * 0.7;
+          d[i + 1] = avg + (d[i + 1] - avg) * 0.7;
+          d[i + 2] = avg + (d[i + 2] - avg) * 0.7;
+          // lift blacks sedikit
+          d[i] += 25;
+          d[i + 1] += 25;
+          d[i + 2] += 25;
+        }
+        ctx.putImageData(imgData, 0, 0);
       }
-
-      // Loop
-      animationFrameRef.current = requestAnimationFrame(processFrame);
+      animationFrameRef.current = requestAnimationFrame(process);
     };
 
-    // Start processing frames
-    animationFrameRef.current = requestAnimationFrame(processFrame);
-  };
+    if (animationFrameRef.current)
+      cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = requestAnimationFrame(process);
+  }, [filter, isMirrored]);
 
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current && liveFilterCanvasRef.current) {
-      const context = canvasRef.current.getContext("2d");
-      if (!context) return;
+  // =============== CAMERA ===============
+  const startCamera = useCallback(async () => {
+    if (!videoRef.current) return;
 
-      // Set proper dimensions
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
-
-      // For filtered images, copy from the live filter canvas
-      if (filter !== "none") {
-        context.drawImage(liveFilterCanvasRef.current, 0, 0);
-      } else {
-        // For non-filtered images, draw directly from video
-        context.save();
-        if (isMirrored) {
-          context.translate(canvasRef.current.width, 0);
-          context.scale(-1, 1);
-        }
-        context.drawImage(videoRef.current, 0, 0);
-        context.restore();
-      }
-
-      const imageData = canvasRef.current.toDataURL("image/png");
-      setCollageImages((prev) =>
-        prev.length < 4 ? [...prev, imageData] : prev
-      );
+    if (videoRef.current.srcObject) {
+      (videoRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((t) => t.stop());
     }
+
+    try {
+      const constraints = {
+        video: {
+          facingMode,
+          width: { ideal: orientation === "portrait" ? 1080 : 1920 },
+          height: { ideal: orientation === "portrait" ? 1920 : 1080 },
+          frameRate: { ideal: 30 },
+        },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoRef.current.srcObject = stream;
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play();
+        startLiveFilterPreview();
+      };
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengakses kamera");
+    }
+  }, [facingMode, orientation, startLiveFilterPreview]);
+
+  // =============== CAPTURE ===============
+  const capturePhoto = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current || !liveFilterCanvasRef.current)
+      return;
+
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) return;
+
+    canvasRef.current.width = videoRef.current.videoWidth;
+    canvasRef.current.height = videoRef.current.videoHeight;
+
+    if (filter !== "none") {
+      ctx.drawImage(liveFilterCanvasRef.current, 0, 0);
+    } else {
+      ctx.save();
+      if (isMirrored) {
+        ctx.translate(canvasRef.current.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(videoRef.current, 0, 0);
+      ctx.restore();
+    }
+
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCollageImages((prev) => (prev.length < 4 ? [...prev, dataUrl] : prev));
+  }, [filter, isMirrored]);
+
+  // =============== OVERLAY DRAWER ===============
+  const drawOverlayElements = useCallback(
+    async (
+      ctx: CanvasRenderingContext2D,
+      canvasWidth: number,
+      canvasHeight: number
+    ) => {
+      const pack = OVERLAY_PACKS.find((p) => p.id === selectedOverlayPack);
+      if (!pack?.overlays.length) return;
+
+      for (const ov of pack.overlays) {
+        ctx.save();
+        ctx.globalAlpha = ov.opacity ?? 1;
+
+        const width = canvasWidth * ov.width;
+        const centerX = canvasWidth * ov.x;
+        const centerY = canvasHeight * ov.y;
+        ctx.translate(centerX, centerY);
+        if (ov.rotate) ctx.rotate((ov.rotate * Math.PI) / 180);
+
+        if (ov.type === "image" && ov.src) {
+          const img = document.createElement("img");
+          img.crossOrigin = "anonymous";
+          img.src = ov.src;
+          await new Promise<void>((res) => {
+            img.onload = () => {
+              const h = width * (img.naturalHeight / img.naturalWidth);
+              ctx.drawImage(img, -width / 2, -h / 2, width, h);
+              res();
+            };
+            img.onerror = () => res();
+          });
+        }
+
+        if (ov.type === "text" && ov.text) {
+          ctx.font = ov.font ?? "bold 20px Arial";
+          ctx.fillStyle = ov.color ?? "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 6;
+          ctx.strokeText(ov.text, 0, 0);
+          ctx.fillText(ov.text, 0, 0);
+        }
+
+        ctx.restore();
+      }
+    },
+    [selectedOverlayPack]
+  );
+
+  const capturePhotoSeries = () => {
+    // CEGAH DOUBLE CLICK SINGKAT
+    if (isCaptureLocked.current) return;
+    isCaptureLocked.current = true; // 🔒 LOCK LANGSUNG (sync)
+
+    setIsCapturing(true);
+    setCollageImages([]); // reset dulu
+
+    // Tentukan berapa foto yang harus diambil
+    const getTargetPhotoCount = () => {
+      if (orientation === "portrait") {
+        return gridLayout === "2x2" ? 4 : 2;
+      }
+      return 4;
+    };
+
+    const targetCount = getTargetPhotoCount();
+
+    let photoCount = 0;
+
+    const startCountdown = (callback: () => void) => {
+      let count = 3;
+      setCountdownValue(count);
+
+      const interval = setInterval(() => {
+        count--;
+        setCountdownValue(count);
+        if (count === 0) {
+          clearInterval(interval);
+          setCountdownValue(null);
+          callback();
+        }
+      }, 1000);
+    };
+
+    const captureNext = () => {
+      if (photoCount < targetCount) {
+        startCountdown(() => {
+          capturePhoto();
+          photoCount++;
+
+          if (photoCount < targetCount) {
+            setTimeout(captureNext, 800);
+          } else {
+            // SELESAI CAPTURE
+            setIsCapturing(false);
+            isCaptureLocked.current = false;
+          }
+        });
+      } else {
+        // fallback kalau kondisi lain
+        setIsCapturing(false);
+        isCaptureLocked.current = false;
+      }
+    };
+
+    // Mulai capture pertama
+    captureNext();
   };
 
-  const renderCollage = async () => {
+  const renderCollage = useCallback(async () => {
     if (!collageCanvasRef.current || collageImages.length === 0) return;
 
     const canvas = collageCanvasRef.current;
@@ -661,15 +468,6 @@ export default function CameraPage() {
     // === OVERLAY ELEMENTS (DI ATAS FOTO, DI BAWAH WATERMARK) ===
     await drawOverlayElements(ctx, canvasWidth, canvasHeight);
 
-    // === WATERMARK (PALING ATAS) ===
-    const getContrastColor = (hex: string) => {
-      const r = parseInt(hex.substr(1, 2), 16);
-      const g = parseInt(hex.substr(3, 2), 16);
-      const b = parseInt(hex.substr(5, 2), 16);
-      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      return lum > 0.5 ? "#000" : "#fff";
-    };
-
     ctx.font = `bold ${isMobile ? 19 : 23}px Arial`;
     ctx.textAlign = "center";
     ctx.strokeStyle = "#000000";
@@ -677,228 +475,55 @@ export default function CameraPage() {
     ctx.strokeText("Caméree - Photo Booth", canvasWidth / 2, canvasHeight - 22);
     ctx.fillStyle = "#ffffff";
     ctx.fillText("Caméree - Photo Booth", canvasWidth / 2, canvasHeight - 22);
-  };
+  }, [
+    collageImages,
+    backgroundColor,
+    backgroundMode,
+    selectedBackground,
+    selectedOverlayPack,
+    gridLayout,
+    orientation,
+    isPortraitModeForced,
+    drawOverlayElements, // ← tambah ini
+  ]);
 
-  // === FUNGSI OVERLAY DIPINDAH KE LUAR renderCollage (biar aman) ===
-  const drawOverlayElements = async (
-    ctx: CanvasRenderingContext2D,
-    canvasWidth: number,
-    canvasHeight: number
-  ) => {
-    const pack = OVERLAY_PACKS.find((p) => p.id === selectedOverlayPack);
-    if (!pack || pack.overlays.length === 0) return;
-
-    for (const ov of pack.overlays) {
-      ctx.save(); // PENTING: simpan state canvas
-      ctx.globalAlpha = ov.opacity ?? 1;
-
-      const width = canvasWidth * ov.width;
-      let height = width * 0.8; // default buat text
-
-      // Hitung posisi tengah stiker (biar rotasi di tengah, bukan pojok)
-      const centerX = canvasWidth * ov.x;
-      const centerY = canvasHeight * ov.y;
-
-      // Pindah ke tengah stiker
-      ctx.translate(centerX, centerY);
-
-      // ROTATE DI SINI — KALAU ADA rotate: -15, langsung jalan!
-      if (ov.rotate !== undefined) {
-        ctx.rotate((ov.rotate * Math.PI) / 180); // derajat → radian
-      }
-
-      // === GAMBAR STIKER (IMAGE) ===
-      if (ov.type === "image" && ov.src) {
-        const img = document.createElement("img");
-        img.crossOrigin = "anonymous";
-        img.src = ov.src;
-
-        await new Promise<void>((resolve) => {
-          const drawImage = () => {
-            height = width * (img.naturalHeight / img.naturalWidth);
-            // Gambar dari tengah (offset -width/2, -height/2)
-            ctx.drawImage(img, -width / 2, -height / 2, width, height);
-            resolve();
-          };
-
-          if (img.complete && img.naturalWidth > 0) {
-            drawImage();
-          } else {
-            img.onload = drawImage;
-            img.onerror = () => resolve();
-          }
-        });
-      }
-
-      // === GAMBAR TEXT ===
-      if (ov.type === "text" && ov.text) {
-        ctx.font = ov.font ?? "bold 20px Arial";
-        ctx.fillStyle = ov.color ?? "#ffffff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        // Outline hitam biar kelihatan di background apa aja
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 6;
-        ctx.strokeText(ov.text, 0, 0); // posisi 0,0 karena sudah di-translate
-        ctx.fillText(ov.text, 0, 0);
-      }
-
-      ctx.restore(); // PENTING: balikin canvas ke kondisi semula
-    }
-  };
-
-  const capturePhotoSeries = () => {
-    // CEGAH DOUBLE CLICK SINGKAT
-    if (isCaptureLocked.current) return;
-    isCaptureLocked.current = true; // 🔒 LOCK LANGSUNG (sync)
-
-    setIsCapturing(true);
-    setCollageImages([]); // reset dulu
-
-    // Tentukan berapa foto yang harus diambil
-    const getTargetPhotoCount = () => {
-      if (orientation === "portrait") {
-        return gridLayout === "2x2" ? 4 : 2;
-      }
-      return 4;
-    };
-
-    const targetCount = getTargetPhotoCount();
-
-    let photoCount = 0;
-
-    const startCountdown = (callback: () => void) => {
-      let count = 3;
-      setCountdownValue(count);
-
-      const interval = setInterval(() => {
-        count--;
-        setCountdownValue(count);
-        if (count === 0) {
-          clearInterval(interval);
-          setCountdownValue(null);
-          callback();
-        }
-      }, 1000);
-    };
-
-    const captureNext = () => {
-      if (photoCount < targetCount) {
-        startCountdown(() => {
-          capturePhoto();
-          photoCount++;
-
-          if (photoCount < targetCount) {
-            setTimeout(captureNext, 800);
-          } else {
-            // SELESAI CAPTURE
-            setIsCapturing(false);
-            isCaptureLocked.current = false;
-          }
-        });
-      } else {
-        // fallback kalau kondisi lain
-        setIsCapturing(false);
-        isCaptureLocked.current = false;
-      }
-    };
-
-    // Mulai capture pertama
-    captureNext();
-  };
-
-  const downloadCollage = () => {
+  const downloadCollage = useCallback(() => {
     if (!collageCanvasRef.current || collageImages.length === 0) {
-      alert("Please capture images first before downloading.");
+      alert("Capture foto dulu ya!");
       return;
     }
 
-    try {
-      const canvas = collageCanvasRef.current;
-      const dataURL = canvas.toDataURL("image/png", 1.0);
-      const fileName = `cameree-collage-${Date.now()}.png`;
+    const canvas = collageCanvasRef.current;
+    const dataURL = canvas.toDataURL("image/png");
+    const fileName = `cameree-${Date.now()}.png`;
 
-      const isIOS =
-        /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-        (navigator.userAgent.includes("Mac") && "ontouchend" in window);
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-      if (isIOS) {
-        const win = window.open("", "_blank");
-
-        const html = `
-            <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                <style>
-                  body {
-                    margin: 0;
-                    padding: 0;
-                    background: #000;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    overflow: hidden;
-                    color: white;
-                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                  }
-                  img {
-                    max-width: 100%;
-                    max-height: 85vh;
-                    border-radius: 12px;
-                  }
-                  button {
-                    margin-top: 18px;
-                    padding: 12px 20px;
-                    font-size: 17px;
-                    background: #1fa3ff;
-                    border: none;
-                    border-radius: 10px;
-                    color: white;
-                    cursor: pointer;
-                  }
-                  button:active {
-                    background: #0b7cc3;
-                  }
-                </style>
-              </head>
-              <body>
-                <img id="preview" src="${dataURL}" />
-
-                <button id="saveBtn">Save Image</button>
-
-                <script>
-                  const btn = document.getElementById("saveBtn");
-                  btn.onclick = () => {
-                    const img = document.getElementById("preview");
-                    const link = document.createElement("a");
-                    link.href = img.src;
-                    link.download = "${fileName}";
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  };
-                </script>
-              </body>
-            </html>
-          `;
-
-        win.document.write(html);
+    if (isIOS) {
+      const newWin = window.open("", "_blank");
+      if (!newWin) {
+        alert("Izinkan popup untuk download di iPhone!");
         return;
       }
-
-      // ---- Android/Desktop normal download ----
-      const link = document.createElement("a");
-      link.download = fileName;
-      link.href = dataURL;
-      link.click();
-    } catch (error) {
-      console.error("Download error:", error);
-      alert("Failed to download. Please try again.");
+      newWin.document.write(`
+        <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Save Photo</title>
+        <style>body{margin:0;background:#000;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:system-ui}
+        img{max-width:94vw;max-height:76vh;border-radius:16px}button{margin-top:24px;padding:16px 32px;background:#007AFF;color:#fff;border:none;border-radius:14px;font-size:18px}</style></head>
+        <body><img src="${dataURL}"><button onclick="save()">Save to Photos</button>
+        <div style="margin-top:16px;font-size:14px;opacity:.8">Tekan lama gambar → Add to Photos</div>
+        <script>function save(){const a=document.createElement('a');a.href="${dataURL}";a.download="${fileName}";document.body.appendChild(a);a.click();a.remove()}</script>
+        </body></html>`);
+      newWin.document.close();
+      return;
     }
-  };
+
+    const a = document.createElement("a");
+    a.href = dataURL;
+    a.download = fileName;
+    a.click();
+  }, [collageImages.length]);
 
   const flipCamera = () => {
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
@@ -927,6 +552,61 @@ export default function CameraPage() {
       setGridLayout((prev) => (prev === "2x2" ? "4x1" : "2x2"));
     }
   };
+
+  // =============== USE EFFECTS ===============
+  useEffect(() => {
+    startCamera();
+  }, [startCamera]);
+
+  useEffect(() => {
+    startLiveFilterPreview();
+  }, [startLiveFilterPreview]);
+
+  useEffect(() => {
+    if (collageImages.length > 0) renderCollage();
+  }, [collageImages.length, renderCollage]);
+
+  useEffect(() => {
+    const updateOrientation = () => {
+      const w = window.innerWidth,
+        h = window.innerHeight;
+      const isPortraitScreen = h > w;
+
+      if (isPortraitModeForced) {
+        setOrientation("portrait");
+        setIsMirrored(facingMode === "user");
+        return;
+      }
+
+      const mobile =
+        /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+      if (mobile && isPortraitScreen && w <= 768) {
+        setOrientation("portrait");
+      } else {
+        setOrientation("landscape");
+      }
+      setIsMirrored(facingMode === "user");
+    };
+
+    updateOrientation();
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
+  }, [facingMode, isPortraitModeForced]);
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null; // optional: bersihin
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -981,13 +661,11 @@ export default function CameraPage() {
                     autoPlay
                     playsInline
                     muted
-                    playsInline
                     className={`
         absolute inset-0 w-full h-full object-cover border border-white
         ${filter !== "none" ? "hidden" : ""}
         ${isMirrored ? "scale-x-[-1]" : ""}
       `}
-                    // Pastikan kamera ambil resolusi tinggi (khususnya di useEffect)
                   />
 
                   {/* Live Filter Canvas */}
@@ -1440,10 +1118,13 @@ export default function CameraPage() {
 
         {/* Hidden canvas untuk proses */}
         <canvas ref={canvasRef} className="hidden" />
-        
+
         <footer className="py-12 text-center text-[#153378]/70 text-sm">
           © {new Date().getFullYear()} Caméree by{" "}
-          <a href="https://reezyee.github.io" className="underline decoration-[#153378]/40 hover:decoration-[#153378]">
+          <a
+            href="https://reezyee.github.io"
+            className="underline decoration-[#153378]/40 hover:decoration-[#153378]"
+          >
             Reezyee
           </a>
           . All memories reserved.
