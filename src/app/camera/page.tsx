@@ -174,10 +174,12 @@ export default function CameraPage() {
     }
 
     try {
+      // const isPortraitScreen =
+      //   window.innerHeight > window.innerWidth && !isPortraitModeForced;
+
       const constraints = {
         video: {
           facingMode,
-          // aspectRatio: { ideal: 0.8 },
           frameRate: { ideal: 30 },
         },
       };
@@ -186,15 +188,17 @@ export default function CameraPage() {
       videoRef.current.srcObject = stream;
       videoRef.current.onloadedmetadata = () => {
         videoRef.current?.play();
-
         if (!videoRef.current) return;
 
-        const vw = videoRef.current.videoWidth;
-        const vh = videoRef.current.videoHeight;
+        let vw = videoRef.current.videoWidth;
+        let vh = videoRef.current.videoHeight;
 
-        if (vw && vh) {
-          setCameraAspect(vw / vh); // ← simpan rasio asli kamera
+        // force swap bila portrait tapi kamera masih landscape
+        if (orientation === "portrait" && vw > vh) {
+          [vw, vh] = [vh, vw]; // SWAP biar portrait
         }
+
+        setCameraAspect(vw / vh);
 
         startLiveFilterPreview();
       };
@@ -223,7 +227,24 @@ export default function CameraPage() {
         ctx.translate(canvasRef.current.width, 0);
         ctx.scale(-1, 1);
       }
-      ctx.drawImage(videoRef.current, 0, 0);
+      const vw = videoRef.current.videoWidth;
+      const vh = videoRef.current.videoHeight;
+
+      if (orientation === "portrait" && vw > vh) {
+        // rotate 90 deg
+        canvasRef.current.width = vh;
+        canvasRef.current.height = vw;
+
+        ctx.save();
+        ctx.translate(vh, 0);
+        ctx.rotate((90 * Math.PI) / 180);
+
+        ctx.drawImage(videoRef.current, 0, 0, vw, vh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(videoRef.current, 0, 0, vw, vh);
+      }
+
       ctx.restore();
     }
 
