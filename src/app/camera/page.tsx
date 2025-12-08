@@ -13,6 +13,7 @@ export default function CameraPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const liveFilterCanvasRef = useRef<HTMLCanvasElement>(null);
   const collageCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [cameraAspect, setCameraAspect] = useState<number | null>(null);
 
   const [selectedBackground, setSelectedBackground] = useState<{
     src: string;
@@ -85,13 +86,17 @@ export default function CameraPage() {
         return;
       }
 
-      if (
-        canvas.width !== video.videoWidth ||
-        canvas.height !== video.videoHeight
-      ) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      // Gunakan ukuran asli video untuk mencegah width/height = 0
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+
+      if (!vw || !vh) {
+        animationFrameRef.current = requestAnimationFrame(process);
+        return;
       }
+
+      canvas.width = vw;
+      canvas.height = vh;
 
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
@@ -172,8 +177,7 @@ export default function CameraPage() {
       const constraints = {
         video: {
           facingMode,
-          width: { ideal: orientation === "portrait" ? 1080 : 1920 },
-          height: { ideal: orientation === "portrait" ? 1920 : 1080 },
+          // aspectRatio: { ideal: 0.8 },
           frameRate: { ideal: 30 },
         },
       };
@@ -182,6 +186,16 @@ export default function CameraPage() {
       videoRef.current.srcObject = stream;
       videoRef.current.onloadedmetadata = () => {
         videoRef.current?.play();
+
+        if (!videoRef.current) return;
+
+        const vw = videoRef.current.videoWidth;
+        const vh = videoRef.current.videoHeight;
+
+        if (vw && vh) {
+          setCameraAspect(vw / vh); // ← simpan rasio asli kamera
+        }
+
         startLiveFilterPreview();
       };
     } catch (err) {
@@ -336,9 +350,13 @@ export default function CameraPage() {
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = 420;
+    const canvasWidth = Math.min(window.innerWidth - 32, 420);
 
     canvas.style.width = canvasWidth + "px";
+    canvas.style.maxWidth = "100%";
+    canvas.style.display = "block";
+    canvas.style.boxSizing = "border-box";
+    canvas.style.overflow = "hidden";
 
     const isPortrait = orientation === "portrait" || isPortraitModeForced;
     const isMobile =
@@ -476,14 +494,14 @@ export default function CameraPage() {
     ctx.fillStyle = "#ffffff";
     ctx.fillText("Caméree - Photo Booth", canvasWidth / 2, canvasHeight - 22);
   }, [
-  collageImages,
-  backgroundColor,
-  backgroundMode,
-  selectedBackground,
-  gridLayout,
-  orientation,
-  isPortraitModeForced,
-  drawOverlayElements,
+    collageImages,
+    backgroundColor,
+    backgroundMode,
+    selectedBackground,
+    gridLayout,
+    orientation,
+    isPortraitModeForced,
+    drawOverlayElements,
   ]);
 
   const downloadCollage = useCallback(() => {
@@ -609,7 +627,7 @@ export default function CameraPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-[#c7c1b6] via-[#d8d2c9] to-[#c7c1b6] flex flex-col">
+      <div className="min-h-screen bg-gradient-to-br from-[#c7c1b6] via-[#d8d2c9] to-[#c7c1b6] flex flex-col overflow-x-hidden">
         {/* Header Elegan */}
         <header className="relative py-8 px-6 text-center overflow-hidden">
           <div className="absolute inset-0 " />
@@ -631,7 +649,7 @@ export default function CameraPage() {
         </header>
 
         {/* Main Content – Grid Responsif */}
-        <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 pb-6 lg:pb-12 max-w-7xl">
+        <main className="flex-1 w-full px-3 sm:px-6 pb-6 lg:pb-12">
           <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 xl:gap-16 h-full">
             {/* ==================== KIRI: KAMERA & CONTROLS ==================== */}
             <motion.div
@@ -641,37 +659,43 @@ export default function CameraPage() {
               className="flex flex-col gap-6"
             >
               {/* Camera Preview Card – PORTRAIT 4:5 BESAR & TAJAM */}
-              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
+              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 overflow-hidden">
                 <div
                   className={`
-      relative mx-auto bg-black/90 overflow-hidden
-      transition-all duration-700 ease-out
-      /* PORTRAIT MODE → 4:5 besar dan dominan */
-      ${
-        isPortraitModeForced || orientation === "portrait"
-          ? "w-full max-w-sm sm:max-w-md md:max-w-lg aspect-[4/5] mx-auto"
-          : "w-full aspect-video"
-      }
-    `}
+                    relative mx-auto bg-black overflow-hidden
+                    transition-all duration-500 ease-out
+
+                    ${
+                      isPortraitModeForced || orientation === "portrait"
+                        ? "w-full max-w-[420px]"
+                        : "w-full max-w-3xl"
+                    }
+                  `}
+                  style={{
+                    aspectRatio:
+                      isPortraitModeForced || orientation === "portrait"
+                        ? "4 / 5"
+                        : cameraAspect ?? "16/9",
+                  }}
                 >
-                  {/* Video Feed – SELALU TAJAM karena pakai object-cover + resolution tinggi */}
+                  {/* Video Feed */}
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
                     className={`
-        absolute inset-0 w-full h-full object-cover border border-white
-        ${filter !== "none" ? "hidden" : ""}
-        ${isMirrored ? "scale-x-[-1]" : ""}
-      `}
+                      absolute inset-0 w-full h-full object-contain bg-black
+                      ${filter !== "none" ? "hidden" : ""}
+                      ${isMirrored ? "scale-x-[-1]" : ""}
+                    `}
                   />
 
                   {/* Live Filter Canvas */}
                   <canvas
                     ref={liveFilterCanvasRef}
                     className={`
-        absolute inset-0 w-full h-full object-cover
+        absolute inset-0 w-full h-full object-contain bg-black
         ${filter === "none" ? "hidden" : ""}
       `}
                   />
@@ -698,7 +722,7 @@ export default function CameraPage() {
                       {/* Angka utama — super tajam & glowing */}
                       <span
                         className="relative text-9xl md:text-[12rem] lg:text-[14rem] font-black text-white 
-                     drop-shadow-2xl tracking-tighter
+                     drop-shadow-xl tracking-tighter
                      [text-shadow:_0_0_40px_rgba(255,255,255,0.8),_0_0_80px_rgba(255,255,255,0.6)] 
                      animate-pulse"
                       >
@@ -722,7 +746,7 @@ export default function CameraPage() {
               </div>
 
               {/* Controls Card */}
-              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 p-6 space-y-6">
+              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-xl border border-white/40 p-6 space-y-6">
                 {/* Filter Pills */}
                 <div>
                   <p className="text-sm font-semibold text-[#153378] mb-3">
@@ -1027,7 +1051,7 @@ export default function CameraPage() {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="flex flex-col"
             >
-              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 flex-1 p-6 md:p-10 flex flex-col">
+              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 w-full p-4 sm:p-6 flex flex-col">
                 {collageImages.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
                     <div className="p-8 bg-[#153378]/10 rounded-full">
@@ -1073,10 +1097,10 @@ export default function CameraPage() {
                       Collage Preview
                     </h3>
                     <div className="flex-1 flex items-center justify-center">
-                      <div className="w-[436px]">
+                      <div className="w-full max-w-sm mx-auto">
                         <canvas
                           ref={collageCanvasRef}
-                          className="w-full h-auto rounded-2xl shadow-2xl"
+                          className="w-full h-auto rounded-2xl shadow-xl md:shadow-2xl"
                         />
                       </div>
                     </div>
