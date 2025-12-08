@@ -507,10 +507,11 @@ export default function CameraPage() {
           <RotateCw size={90} className="mx-auto mb-8 animate-spin-slow" />
           <h1 className="text-5xl font-black mb-6">Rotate Your Phone</h1>
           <p className="text-2xl">
-            Caméree hanya bisa dipakai dalam mode{" "}
+            Caméree can only be used in{" "}
             <span className="underline font-bold">landscape</span>
+            {" "}mode
           </p>
-          <p className="mt-6 text-xl opacity-80">Putar HP ke samping ya!</p>
+          <p className="mt-6 text-xl opacity-80">Turn the phone left or right!!</p>
         </motion.div>
       </div>
     );
