@@ -476,15 +476,14 @@ export default function CameraPage() {
     ctx.fillStyle = "#ffffff";
     ctx.fillText("Caméree - Photo Booth", canvasWidth / 2, canvasHeight - 22);
   }, [
-    collageImages,
-    backgroundColor,
-    backgroundMode,
-    selectedBackground,
-    selectedOverlayPack,
-    gridLayout,
-    orientation,
-    isPortraitModeForced,
-    drawOverlayElements, // ← tambah ini
+  collageImages,
+  backgroundColor,
+  backgroundMode,
+  selectedBackground,
+  gridLayout,
+  orientation,
+  isPortraitModeForced,
+  drawOverlayElements,
   ]);
 
   const downloadCollage = useCallback(() => {
