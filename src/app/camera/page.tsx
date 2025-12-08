@@ -94,21 +94,35 @@ export default function CameraPage() {
         animationFrameRef.current = requestAnimationFrame(process);
         return;
       }
-
-      canvas.width = vw;
-      canvas.height = vh;
-
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width =
+        orientation === "portrait" && video.videoWidth > video.videoHeight
+          ? video.videoHeight
+          : video.videoWidth;
+      canvas.height =
+        orientation === "portrait" && video.videoWidth > video.videoHeight
+          ? video.videoWidth
+          : video.videoHeight;
 
       ctx.save();
+
+      // Mirror jika selfie
       if (isMirrored) {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Rotate portrait feed jika video landscape
+      if (orientation === "portrait" && video.videoWidth > video.videoHeight) {
+        ctx.translate(canvas.width, 0);
+        ctx.rotate((90 * Math.PI) / 180);
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      } else {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+
       ctx.restore();
 
       if (filter === "grayscale") {
@@ -216,41 +230,45 @@ export default function CameraPage() {
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
 
-    canvasRef.current.width = videoRef.current.videoWidth;
-    canvasRef.current.height = videoRef.current.videoHeight;
+    const vw = videoRef.current.videoWidth;
+    const vh = videoRef.current.videoHeight;
 
+    // Tentukan canvas size sesuai orientation
+    if (orientation === "portrait" && vw > vh) {
+      canvasRef.current.width = vh;
+      canvasRef.current.height = vw;
+    } else {
+      canvasRef.current.width = vw;
+      canvasRef.current.height = vh;
+    }
+
+    ctx.save();
+
+    // Mirror jika selfie
+    if (isMirrored) {
+      ctx.translate(canvasRef.current.width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    // Draw image dengan rotasi jika portrait
+    if (orientation === "portrait" && vw > vh) {
+      ctx.translate(canvasRef.current.width, 0);
+      ctx.rotate((90 * Math.PI) / 180);
+      ctx.drawImage(videoRef.current, 0, 0, vw, vh);
+    } else {
+      ctx.drawImage(videoRef.current, 0, 0, vw, vh);
+    }
+
+    ctx.restore();
+
+    // Jika ada filter, timpa dengan liveFilterCanvas
     if (filter !== "none") {
       ctx.drawImage(liveFilterCanvasRef.current, 0, 0);
-    } else {
-      ctx.save();
-      if (isMirrored) {
-        ctx.translate(canvasRef.current.width, 0);
-        ctx.scale(-1, 1);
-      }
-      const vw = videoRef.current.videoWidth;
-      const vh = videoRef.current.videoHeight;
-
-      if (orientation === "portrait" && vw > vh) {
-        // rotate 90 deg
-        canvasRef.current.width = vh;
-        canvasRef.current.height = vw;
-
-        ctx.save();
-        ctx.translate(vh, 0);
-        ctx.rotate((90 * Math.PI) / 180);
-
-        ctx.drawImage(videoRef.current, 0, 0, vw, vh);
-        ctx.restore();
-      } else {
-        ctx.drawImage(videoRef.current, 0, 0, vw, vh);
-      }
-
-      ctx.restore();
     }
 
     const dataUrl = canvasRef.current.toDataURL("image/png");
     setCollageImages((prev) => (prev.length < 4 ? [...prev, dataUrl] : prev));
-  }, [filter, isMirrored]);
+  }, [filter, isMirrored, orientation]);
 
   // =============== OVERLAY DRAWER ===============
   const drawOverlayElements = useCallback(
