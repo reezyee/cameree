@@ -1,4 +1,4 @@
-# Caméree v2.1.1
+# Caméree v2.1.2
 
 A modern photo booth with a vintage soul — combining real-time filters, retro aesthetics, and instant memories.
 
@@ -6,9 +6,9 @@ Caméree transforms your device into an elegant, intuitive photo booth experienc
 
 ---
 
-## 🎉 What's New in v2.1.1
+## 🎉 What's New in v2.1.2
 
-Caméree 2.1.1 introduces a redesigned UI, improved performance, changed infrared filter, and adding themes for collage backgounds.
+Caméree 2.1.2 introduces a redesigned UI, improved performance, changed infrared filter, and adding themes for collage backgounds.
 
 ### ✨ Major Updates
 
@@ -48,7 +48,7 @@ Download your collage instantly — no waiting, no complexity.
 
 ## ❤️ Credits
 
-Caméree v2.1.1 by [Reezyee](https://reezyee.github.io)
+Caméree v2.1.2 by [Reezyee](https://reezyee.github.io)
 
 
  
