@@ -5,226 +5,235 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Camera } from "lucide-react";
 
-// ==================== SPLASH SCREEN ====================
-function FilmStripSplash({ onFinish }: { onFinish: () => void }) {
+// ==================== 1. FUTURISTIC ANALOG SPLASH ====================
+function FuturisticSplash({ onFinish }: { onFinish: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onFinish, 5200);
+    const timer = setTimeout(onFinish, 5000);
     return () => clearTimeout(timer);
   }, [onFinish]);
 
   return (
     <motion.div
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#c7c1b6] overflow-hidden"
+      exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
+      transition={{ duration: 0.8 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#153378] overflow-hidden"
     >
-      {/* Vintage grain + light leak */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 opacity-50 mix-blend-soft-light bg-[url('https://assets.codepen.io/605876/noise.png')] animate-pulse" />
-        <motion.div
-          animate={{ opacity: [0.2, 0.6, 0.2] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          className="absolute inset-0 bg-gradient-to-br from-orange-600/30 via-transparent to-red-800/20 blur-3xl"
-        />
+      {/* Dynamic Scanline & Grain - Efek Digital Analog */}
+      <div className="absolute inset-0 pointer-events-none z-30">
+        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://assets.codepen.io/605876/noise.png')]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent h-2 w-full animate-scanline" />
       </div>
 
-      {/* DUA STRIP VERTIKAL — BERSAMPINGAN & MIRING 40° */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative flex items-center -space-x-48 md:-space-x-64 lg:-space-x-80 rotate-[40deg] scale-90 md:scale-110 lg:scale-125">
-          {/* STRIP KIRI */}
+      {/* BACKGROUND STRIPS - Bergerak lebih subtle & futuristik */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-20">
+        <div className="relative flex -space-x-40 rotate-[-25deg]">
           <motion.div
-            initial={{ y: 0 }}
-            animate={{ y: "-160vh" }}
-            transition={{
-              duration: 2.4,
-              delay: 1.4,
-              ease: [0.16, 1, 0.3, 1],
-            }}
+            animate={{ y: ["0%", "-50%"] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
           >
-            <VintageFilmStrip half />
+            <FilmStripStream />
           </motion.div>
-
-          {/* STRIP KANAN */}
           <motion.div
-            initial={{ y: 0 }}
-            animate={{ y: "160vh" }}
-            transition={{
-              duration: 2.4,
-              delay: 1.4,
-              ease: [0.16, 1, 0.3, 1],
-            }}
+            animate={{ y: ["-50%", "0%"] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
           >
-            <VintageFilmStrip half reverse />
+            <FilmStripStream />
           </motion.div>
         </div>
       </div>
 
-      {/* TULISAN CAMÉREE — REVEAL GILA */}
-      <motion.div
-        initial={{ scale: 0.6, opacity: 0, filter: "blur(32px)" }}
-        animate={{ scale: [0.6, 1.15, 1], opacity: 1, filter: "blur(0px)" }}
-        transition={{ duration: 2.8, delay: 2.8, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 text-center"
-      >
+      {/* CENTER REVEAL - "The Lens Shutter" */}
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Lingkaran Aperture Futuristik */}
         <motion.div
-          animate={{ opacity: [0, 1, 0.5], scale: [1, 3, 2] }}
-          transition={{ duration: 2.6, delay: 3.2 }}
-          className="absolute -inset-40 -z-10 blur-3xl"
-          style={{ background: "radial-gradient(circle, #153378 8%, transparent 65%)" }}
-        />
+          initial={{ scale: 0, rotate: -180, opacity: 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 1 }}
+          transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute w-64 h-64 md:w-96 md:h-96 border border-white/10 rounded-full"
+        >
+          <div className="absolute inset-0 border-t-2 border-white/40 rounded-full animate-spin-slow" />
+        </motion.div>
 
-        <h1 className="text-7xl sm:text-9xl md:text-[14rem] lg:text-[16rem] font-serif font-black text-[#153378] tracking-tighter drop-shadow-2xl [text-shadow:0_40px_80px_rgba(0,0,0,0.7),_0_0_140px_#153378]">
-          Caméree
-        </h1>
+        {/* Text Reveal dengan Efek Chromatic Aberration */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 1 }}
+          className="relative"
+        >
+          <h1 className="text-7xl md:text-[11rem] font-serif font-black text-[#d8d2c9] tracking-tighter mix-blend-difference">
+            Caméree
+          </h1>
+          {/* Efek Shadow Biru yang nge-glow */}
+          <div className="absolute inset-0 text-blue-500 opacity-50 blur-sm translate-x-1 animate-pulse">
+            Caméree
+          </div>
+        </motion.div>
 
-          {/* <motion.p
-            initial={{ opacity: 0, y: 80 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 4.4, duration: 1.4 }}
-            className="mt-10 text-xl sm:text-3xl md:text-4xl text-[#153378]/80 font-light tracking-widest uppercase"
-          >
-            Timeless moments await
-          </motion.p> */}
-      </motion.div>
+        {/* Loading Bar Futuristik */}
+        <div className="w-48 h-[2px] bg-white/10 mt-8 relative overflow-hidden">
+          <motion.div
+            initial={{ x: "-100%" }}
+            animate={{ x: "100%" }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 bg-white/60"
+          />
+        </div>
+      </div>
+
+      {/* Shutter Flash di akhir animasi */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 1, 0] }}
+        transition={{ delay: 4.2, duration: 0.4 }}
+        className="absolute inset-0 bg-white z-50 pointer-events-none"
+      />
     </motion.div>
   );
 }
 
-// ==================== VINTAGE FILM STRIP VERTIKAL (2-3 FRAME) ====================
-function VintageFilmStrip({ half = false }: { half?: boolean; reverse?: boolean }) {
-  const frames = half ? 3 : 8;
-
+// Sub-component untuk background film stream
+function FilmStripStream() {
   return (
-    <div className="w-64 sm:w-80 md:w-96 lg:w-[28rem] relative">
-      {/* Film base */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#2C1B18]/98 via-[#3d2817] to-[#2C1B18]/98 rounded-xl shadow-2xl" />
-
-      {/* Sprocket holes kiri & kanan */}
-      <div className="absolute inset-y-8 left-4 right-4 flex justify-between pointer-events-none">
-        {[...Array(2)].map((_, side) => (
-          <div key={side} className="flex flex-col justify-between py-8">
-            {[...Array(frames + 2)].map((_, i) => (
-              <div
-                key={i}
-                className="w-10 h-14 bg-black/95 rounded-sm shadow-inner"
-                style={{ clipPath: "polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%)" }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* Photo frames vertikal */}
-      <div className="absolute inset-x-16 top-12 flex flex-col gap-12 md:gap-16">
-        {[...Array(frames)].map((_, i) => (
-          <div
-            key={i}
-            className="aspect-[4/5] bg-gradient-to-br from-[#f4e4bc] via-[#e8d9a6] to-[#d4c4a0] rounded-lg overflow-hidden shadow-2xl border-8 border-[#2C1B18]"
-          >
-            <div className="absolute inset-0 opacity-60 mix-blend-multiply">
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#8B7355]/30 to-transparent" />
-              <div className="absolute top-8 left-8 w-32 h-px bg-white/40 blur-md -rotate-45" />
-              <div className="absolute bottom-12 right-10 w-28 h-px bg-black/50 blur-sm rotate-12" />
-            </div>
-            <div className="absolute inset-6 border-4 border-white/40 rounded-md shadow-inner" />
-          </div>
-        ))}
-      </div>
-
-      {/* Light leaks */}
-      <div className="absolute inset-0 mix-blend-soft-light opacity-40 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-b from-orange-600/50 to-transparent blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-2/3 h-2/3 bg-gradient-to-tl from-red-700/40 to-transparent blur-3xl" />
-      </div>
-
-      {/* Moving scratches */}
-      <motion.div
-        animate={{ x: ["-100%", "100%"] }}
-        transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-0 opacity-20 pointer-events-none"
-      >
-        <div className="h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent blur-sm -rotate-12 scale-y-[300%]" />
-      </motion.div>
+    <div className="flex flex-col gap-8 py-4">
+      {[...Array(10)].map((_, i) => (
+        <div
+          key={i}
+          className="w-40 h-56 bg-white/5 border border-white/10 rounded-md backdrop-blur-sm"
+        />
+      ))}
     </div>
   );
 }
 
-// ==================== MAIN PAGE ====================
+// ==================== 2. MAIN LANDING PAGE ====================
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
 
   return (
     <>
-      <AnimatePresence>
-        {showSplash && <FilmStripSplash onFinish={() => setShowSplash(false)} />}
+      <style jsx global>{`
+        @keyframes scanline {
+          0% {
+            transform: translateY(-100vh);
+          }
+          100% {
+            transform: translateY(100vh);
+          }
+        }
+        .animate-scanline {
+          animation: scanline 8s linear infinite;
+        }
+        .animate-spin-slow {
+          animation: spin 10s linear infinite;
+        }
+      `}</style>
+
+      <AnimatePresence mode="wait">
+        {showSplash && (
+          <FuturisticSplash
+            key="splash"
+            onFinish={() => setShowSplash(false)}
+          />
+        )}
       </AnimatePresence>
 
-      <div className="min-h-screen bg-gradient-to-br from-[#c7c1b6] via-[#d8d2c9] to-[#c7c1b6]">
-        {/* Hero */}
-        <section className="container mx-auto px-6 pt-20 pb-16 md:pt-32">
-          <div className="grid md:grid-cols-2 gap-12 items-center max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-[#c7c1b6] via-[#d8d2c9] to-[#c7c1b6] font-serif text-[#153378] overflow-x-hidden">
+        {/* Decorative Top Grain */}
+        <div className="fixed inset-0 pointer-events-none opacity-[0.05] bg-[url('https://assets.codepen.io/605876/noise.png')] z-50" />
+
+        <main className="container mx-auto px-6 flex flex-col justify-center min-h-screen">
+          <div className="grid lg:grid-cols-2 gap-16 items-center max-w-7xl mx-auto w-full">
+            {/* Left Content */}
             <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1.2, delay: 0.3 }}
-              className="space-y-10"
+              initial={{ opacity: 0, x: -50 }}
+              animate={!showSplash ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 1, delay: 0.2 }}
+              className="space-y-10 text-center lg:text-left order-2 lg:order-1"
             >
               <div className="space-y-4">
-                <h1 className="text-7xl md:text-9xl font-serif font-bold text-[#153378] leading-none">
+                <motion.h2
+                  initial={{ opacity: 0 }}
+                  animate={!showSplash ? { opacity: 1 } : {}}
+                  transition={{ delay: 0.5 }}
+                  className="opacity-60 text-sm font-light tracking-[3px] font-[#637398] italic"
+                >
+                  © 2025 Caméree • Crafted with Soul by{" "}
+                  <a
+                    href="https://reezyee.github.io"
+                    className="underline hover:opacity-100 transition-opacity"
+                  >
+                    Reezyee
+                  </a>
+                </motion.h2>
+                <h1 className="text-7xl md:text-9xl font-black leading-[0.8] tracking-tighter">
                   Caméree
                 </h1>
-                <p className="text-3xl md:text-5xl font-light text-[#153378]/90">
-                  Capture Timeless Moments
-                </p>
               </div>
-              <p className="text-lg md:text-xl text-[#153378]/80 max-w-lg leading-relaxed font-light">
-                A modern photo booth with vintage soul — real-time filters, retro overlays, and instant memories.
+
+              <p className="text-lg md:text-xl max-w-lg mx-auto lg:mx-0 leading-relaxed font-light opacity-80">
+                Experience the soul of vintage photobooth. Real-time filters,
+                classic film overlays, and instant digital strips designed for
+                your best memories.
               </p>
-              <Link href="/camera">
-                <Button className="px-12 py-8 text-xl font-medium rounded-2xl bg-[#153378] text-[#c7c1b6] hover:bg-[#153378]/90 transition-all shadow-2xl hover:shadow-3xl hover:scale-105">
-                  <Camera className="mr-3 size-7" />
-                  Start Capturing
-                </Button>
-              </Link>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
+                <Link href="/camera">
+                  <Button className="group relative overflow-hidden px-10 py-8 text-xl font-bold rounded-2xl bg-[#153378] text-[#d8d2c9] transition-all shadow-xl hover:shadow-[#153378]/20 hover:scale-[1.02] active:scale-95">
+                    <span className="relative z-10 flex items-center">
+                      <Camera className="mr-3 size-6 group-hover:rotate-12 transition-transform" />
+                      Start Capturing
+                    </span>
+                    <motion.div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform" />
+                  </Button>
+                </Link>
+
+                {/* Secondary Button / Info */}
+                <div className="flex items-center justify-center px-6 opacity-60 text-sm italic font-light">
+                  No account needed. Just smile.
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Content: Visual Decor */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
+              animate={!showSplash ? { opacity: 1, scale: 1, rotate: 0 } : {}}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              className="relative order-1 lg:order-2 hidden lg:flex justify-center"
+            >
+              <div className="relative w-64 md:w-80 aspect-[1/2] rotate-3 hover:rotate-0 transition-transform duration-700">
+                {/* Stacked Film Strip Look */}
+                <div className="absolute inset-0 bg-[#2C1B18] rounded-xl shadow-2xl transform translate-x-4 translate-y-4 -z-10 opacity-20" />
+                <div className="absolute inset-0 bg-[#2C1B18] rounded-xl shadow-2xl transform translate-x-2 translate-y-2 -z-10 opacity-50" />
+
+                {/* Primary Preview Strip */}
+                <div className="h-full bg-[#2C1B18] p-4 rounded-xl shadow-2xl flex flex-col gap-4 border-x-4 border-dashed border-white/5">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 bg-[#d4c4a0] rounded-sm relative overflow-hidden grayscale contrast-125 opacity-90"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Decorative Floating Element */}
+              <motion.div
+                animate={{ y: [0, -20, 0] }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="absolute -top-10 -right-10 w-32 h-32 bg-[#153378] rounded-full blur-[80px] opacity-20"
+              />
             </motion.div>
           </div>
-        </section>
-
-        {/* Features
-        <section className="container mx-auto px-6 py-24">
-          <div className="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto">
-            {[
-              { icon: Filter, title: "Live Vintage Filters", desc: "Real-time sepia, B&W, retro & infrared effects" },
-              { icon: Camera, title: "Photo Booth Mode", desc: "4-shot strips or 2×2 grids with custom overlays" },
-              { icon: Download, title: "Instant Save", desc: "Download your collage instantly — no waiting" },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.2, duration: 0.9 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -12, scale: 1.03 }}
-                className="bg-white/50 backdrop-blur-xl rounded-3xl p-10 text-center shadow-2xl border border-white/40 transition-all duration-500 hover:shadow-3xl"
-              >
-                <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-[#153378]/15 flex items-center justify-center">
-                  <item.icon className="size-10 text-[#153378]" />
-                </div>
-                <h3 className="text-3xl font-serif text-[#153378] mb-4">{item.title}</h3>
-                <p className="text-[#153378]/80 leading-relaxed text-lg">{item.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </section> */}
-
-        <footer className="py-12 text-center text-[#153378]/70 text-sm">
-          © {new Date().getFullYear()} Caméree by{" "}
-          <a href="https://reezyee.github.io" className="underline decoration-[#153378]/40 hover:decoration-[#153378]">
-            Reezyee
-          </a>
-          . All memories reserved.
-        </footer>
+        </main>
       </div>
     </>
   );

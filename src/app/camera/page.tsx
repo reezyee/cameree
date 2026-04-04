@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Camera, RefreshCcw, Download, RotateCw } from "lucide-react";
+import {
+  Camera,
+  RefreshCcw,
+  Download,
+  RotateCw,
+  FlipHorizontal,
+  Trash2,
+  ArrowLeft,
+} from "lucide-react";
 import { OVERLAY_PACKS } from "@/types/overlays";
 
 export default function CameraPage() {
@@ -29,13 +37,9 @@ export default function CameraPage() {
   const [collageImages, setCollageImages] = useState<string[]>([]);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [isMirrored, setIsMirrored] = useState<boolean>(true);
-  const [backgroundColor, setBackgroundColor] = useState<string>("#f5e6d8");
-  const [backgroundMode, setBackgroundMode] = useState<"color" | "image">(
-    "color"
-  );
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [countdownValue, setCountdownValue] = useState<number | null>(null);
-  const [gridLayout, setGridLayout] = useState<"2x2" | "4x1">("4x1");
+  const [gridLayout, setGridLayout] = useState<"3x1" | "4x1">("4x1");
 
   const isCaptureLocked = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
@@ -69,7 +73,13 @@ export default function CameraPage() {
     },
   ];
 
-  // DETEKSI ORIENTASI + POPUP ROTASI
+  const [backgroundMode, setBackgroundMode] = useState<"color" | "image">(
+    "color",
+  );
+  const [backgroundColor, setBackgroundColor] = useState<string>("#f5e6d8");
+  const colorPickers = "/images/colorpicker.webp";
+
+  // ORIENTATION CHECK
   useEffect(() => {
     const checkOrientation = () => {
       const isPortrait = window.innerHeight > window.innerWidth;
@@ -96,7 +106,6 @@ export default function CameraPage() {
       const video = videoRef.current;
       const canvas = liveFilterCanvasRef.current;
 
-      // DOBEL CHECK: pastikan DOM element benar-benar ada
       if (!video || !canvas) {
         animationFrameId = requestAnimationFrame(process);
         return;
@@ -108,7 +117,7 @@ export default function CameraPage() {
         return;
       }
 
-      // Set canvas size sesuai video
+      // Set canvas size
       if (
         canvas.width !== video.videoWidth ||
         canvas.height !== video.videoHeight
@@ -117,24 +126,23 @@ export default function CameraPage() {
         canvas.height = video.videoHeight;
       }
 
-      // Cek apakah video sudah ready
+      // Video ready check
       if (video.readyState < video.HAVE_ENOUGH_DATA) {
         animationFrameId = requestAnimationFrame(process);
         return;
       }
 
-      // Mirror jika perlu
+      // Mirror
       ctx.save();
       if (isMirrored) {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
 
-      // Gambar video ke canvas
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       ctx.restore();
 
-      // Apply filter (sama seperti sebelumnya)
+      // Apply filter
       if (filter !== "none") {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
@@ -233,20 +241,23 @@ export default function CameraPage() {
 
     if (filter !== "none") ctx.drawImage(liveFilterCanvasRef.current, 0, 0);
 
+    const maxPhotos = gridLayout === "3x1" ? 3 : 4;
     setCollageImages((prev) =>
-      prev.length < 4 ? [...prev, canvas.toDataURL("image/png")] : prev
+      prev.length < maxPhotos ? [...prev, canvas.toDataURL("image/png")] : prev,
     );
-  }, [filter, isMirrored]);
+  }, [filter, isMirrored, gridLayout]);
 
-  // CAPTURE SERIES (SELALU 4 FOTO)
+  // CAPTURE SERIES
   const capturePhotoSeries = () => {
     if (isCaptureLocked.current) return;
     isCaptureLocked.current = true;
+
     setIsCapturing(true);
+
+    const total = gridLayout === "3x1" ? 3 : 4;
     setCollageImages([]);
 
     let count = 0;
-    const total = 4;
 
     const shoot = () => {
       let sec = 3;
@@ -259,10 +270,13 @@ export default function CameraPage() {
           setCountdownValue(null);
           capturePhoto();
           count++;
-          if (count < total) setTimeout(shoot, 800);
-          else {
-            setIsCapturing(false);
-            isCaptureLocked.current = false;
+          if (count < total) {
+            setTimeout(shoot, 800);
+          } else {
+            setTimeout(() => {
+              setIsCapturing(false);
+              isCaptureLocked.current = false;
+            }, 500);
           }
         }
       }, 1000);
@@ -312,10 +326,10 @@ export default function CameraPage() {
         ctx.restore();
       }
     },
-    [selectedOverlayPack]
+    [selectedOverlayPack],
   );
 
-  // RENDER COLLAGE (LANDSCAPE ONLY)
+  // RENDER COLLAGE
   const renderCollage = useCallback(async () => {
     if (!collageCanvasRef.current || collageImages.length === 0) return;
     const canvas = collageCanvasRef.current;
@@ -327,15 +341,15 @@ export default function CameraPage() {
     const isMobile = window.innerWidth < 768;
     const padding = isMobile ? 8 : 10;
     const gap = isMobile ? 4 : 6;
-    const borderWidth = isMobile ? 2 : 3;
-    const cornerRadius = isMobile ? 10 : 14;
+    const borderWidth = isMobile ? 0.5 : 1;
+    const cornerRadius = isMobile ? 8 : 10;
     const targetAspect = 16 / 9;
 
     let cellWidth, cellHeight, canvasHeight;
-    if (gridLayout === "2x2") {
-      cellWidth = (canvasWidth - padding * 2 - gap) / 2;
+    if (gridLayout === "3x1") {
+      cellWidth = canvasWidth - padding * 2;
       cellHeight = cellWidth / targetAspect;
-      canvasHeight = padding * 2 + cellHeight * 2 + gap + 60;
+      canvasHeight = padding * 2 + cellHeight * 3 + gap * 2 + 60;
     } else {
       cellWidth = canvasWidth - padding * 2;
       cellHeight = cellWidth / targetAspect;
@@ -366,7 +380,7 @@ export default function CameraPage() {
     const noiseData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = noiseData.data;
     for (let i = 0; i < data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * 50;
+      const noise = (Math.random() - 0.5) * 30;
       data[i] += noise;
       data[i + 1] += noise;
       data[i + 2] += noise;
@@ -375,23 +389,14 @@ export default function CameraPage() {
 
     // Photos
     await Promise.all(
-      collageImages.map((src, i) => {
+      collageImages.slice(0, gridLayout === "3x1" ? 3 : 4).map((src, i) => {
         return new Promise<void>((resolve) => {
           const img = document.createElement("img");
           img.src = src;
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            let x, y;
-            if (gridLayout === "2x2") {
-              const row = Math.floor(i / 2);
-              const col = i % 2;
-              x = padding + col * (cellWidth + gap);
-              y = padding + row * (cellHeight + gap);
-            } else {
-              x = padding;
-              y = padding + i * (cellHeight + gap);
-            }
-
+            const x = padding;
+            const y = padding + i * (cellHeight + gap);
             const imgRatio = img.width / img.height;
             let sx = 0,
               sy = 0,
@@ -422,7 +427,7 @@ export default function CameraPage() {
           };
           img.onerror = () => resolve();
         });
-      })
+      }),
     );
 
     // Overlays
@@ -431,14 +436,14 @@ export default function CameraPage() {
     // Watermark
     ctx.font = `bold ${isMobile ? 16 : 20}px Serif`;
     ctx.textAlign = "center";
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#0f3460";
+    ctx.lineWidth = 3;
     ctx.strokeText(
       "Caméree  -  Photo Booth",
       canvasWidth / 2,
-      canvasHeight - 22
+      canvasHeight - 22,
     );
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#f5e6d8";
     ctx.fillText("Caméree  -  Photo Booth", canvasWidth / 2, canvasHeight - 22);
   }, [
     collageImages,
@@ -464,7 +469,7 @@ export default function CameraPage() {
     if (isIOS) {
       const win = window.open("", "_blank");
       if (!win) {
-        alert("Izinkan popup untuk download!");
+        alert("Allow popups for download!");
         return;
       }
       win.document.write(`
@@ -496,7 +501,7 @@ export default function CameraPage() {
     if (collageImages.length > 0) renderCollage();
   }, [collageImages.length, renderCollage]);
 
-  // POPUP ROTASI
+  // RENDER ROTATE SCREEN
   if (showRotateScreen) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-[#153378] to-[#153378ee] flex items-center justify-center z-50 text-white text-center px-8">
@@ -508,10 +513,11 @@ export default function CameraPage() {
           <h1 className="text-5xl font-black mb-6">Rotate Your Phone</h1>
           <p className="text-2xl">
             Caméree can only be used in{" "}
-            <span className="underline font-bold">landscape</span>
-            {" "}mode
+            <span className="underline font-bold">landscape</span> mode
           </p>
-          <p className="mt-6 text-xl opacity-80">Turn the phone left or right!!</p>
+          <p className="mt-6 text-xl opacity-80">
+            Turn the phone left or right!!
+          </p>
         </motion.div>
       </div>
     );
@@ -521,21 +527,23 @@ export default function CameraPage() {
   return (
     <>
       <div className="font-serif min-h-screen bg-gradient-to-br from-[#c7c1b6] via-[#d8d2c9] to-[#c7c1b6] flex flex-col overflow-hidden">
-        <header className="py-8 px-6 text-center">
-          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#153378] to-[#153378dd]">
-            <Link href="/">Caméree</Link>
-          </h1>
-          <p className="mt-2 text-xl text-[#153378]/90">
-            Interactive Photo Booth
-          </p>
-        </header>
-
-        <main className="flex-1 px-4 pb-8">
-          <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-            {/* KIRI: KAMERA + KONTROL */}
-            <div className="space-y-6">
+        <Link
+          href="/"
+          className="absolute z-50 left-4 top-4 md:left-6 md:top-6 flex items-center justify-center 
+             w-10 h-10 md:w-12 md:h-12
+             bg-white/10 backdrop-blur-md border border-white/20 
+             rounded-xl shadow-lg transition-all 
+             hover:bg-white/20 hover:border-white/40 group active:scale-90"
+        >
+          <ArrowLeft className="text-[#153378] size-5 md:size-6 group-hover:-translate-x-1 transition-transform" />
+        </Link>
+        <main className="flex-1 px-4 py-8">
+          <div className="flex gap-8 max-w-7xl mx-auto">
+            {/* LEFT: CAMERA + CONTROL */}
+            <div className="space-y-6 relative w-4xl">
               {/* Preview */}
-              <div className="bg-black rounded-3xl overflow-hidden shadow-2xl mx-auto max-w-4xl aspect-video relative">
+              <div className="bg-black rounded-3xl overflow-hidden shadow-2xl width-4xl aspect-video relative group">
+                {/* Video & Canvas Elements */}
                 <video
                   ref={videoRef}
                   autoPlay
@@ -559,7 +567,7 @@ export default function CameraPage() {
                     animate={{ scale: 1.15, opacity: 1 }}
                     className="absolute inset-0 flex items-center justify-center pointer-events-none"
                   >
-                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+                    <div className="absolute inset-0 bg-black/10" />
                     <div className="absolute w-96 h-96 rounded-full bg-white/10 blur-3xl" />
                     <span className="relative text-[14rem] font-black text-white drop-shadow-2xl [text-shadow:0_0_80px_rgba(255,255,255,0.8)] animate-pulse">
                       {countdownValue}
@@ -569,155 +577,220 @@ export default function CameraPage() {
                     )}
                   </motion.div>
                 )}
-              </div>
 
-              {/* Kontrol */}
-              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-xl border border-white/40 p-6 space-y-6">
-                {/* Filter */}
-                <div className="flex flex-wrap gap-3 justify-center">
-                  {filters.map(({ id, label, src }) => (
-                    <button
-                      key={id}
-                      onClick={() => !isCapturing && setFilter(id)}
-                      disabled={isCapturing}
-                      className={`relative overflow-hidden rounded-2xl transition-all ${
-                        filter === id
-                          ? "ring-4 ring-[#153378] scale-110"
-                          : "hover:scale-105"
-                      } ${isCapturing && "opacity-50"}`}
-                    >
-                      <Image
-                        src={src}
-                        alt={label}
-                        width={80}
-                        height={80}
-                        className="w-20 h-20 object-cover rounded-2xl"
-                      />
-                      <span className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-end justify-center pb-2 text-white text-xs font-bold">
-                        {label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-3 gap-3">
-                  <Button
+                {/* CAMERA CONTROL */}
+                <div className="absolute bottom-4 right-4 z-10 flex flex-col items-center gap-2 transition-opacity">
+                  {/* Switch Button */}
+                  <button
                     onClick={() => {
                       setFacingMode((prev) =>
-                        prev === "user" ? "environment" : "user"
+                        prev === "user" ? "environment" : "user",
                       );
                       setCollageImages([]);
                     }}
                     disabled={isCapturing}
-                    variant="outline"
-                    className="bg-white/50"
+                    title="Switch Camera"
+                    className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full shadow-lg hover:bg-white/40 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <RefreshCcw className="mr-2" size={18} /> Switch
-                  </Button>
-                  <Button
+                    <RefreshCcw size={20} />
+                  </button>
+
+                  {/* Mirroring*/}
+                  <button
                     onClick={() => setIsMirrored((p) => !p)}
                     disabled={isCapturing}
-                    variant="outline"
-                    className="bg-white/50"
+                    title={isMirrored ? "Unmirror" : "Mirror"}
+                    className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full shadow-lg hover:bg-white/40 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isMirrored ? "Unmirror" : "Mirror"}
-                  </Button>
+                    <FlipHorizontal size={20} />
+                  </button>
+
+                  {/* Layout toggle */}
                   <Button
-                    onClick={() => setCollageImages([])}
+                    onClick={() =>
+                      setGridLayout((prev) => (prev === "4x1" ? "3x1" : "4x1"))
+                    }
                     disabled={isCapturing}
-                    variant="destructive"
+                    size="sm"
+                    title="Strips"
+                    variant="outline"
+                    className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full shadow-lg hover:bg-white/40 hover:text-white transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Clear
+                    {gridLayout === "3x1" ? "3×1" : "4×1"}
                   </Button>
+
+                  {/* Start Button */}
+                  <button
+                    onClick={capturePhotoSeries}
+                    disabled={isCapturing}
+                    className="w-14 h-14 rounded-full flex items-center justify-center 
+             backdrop-blur-lg bg-blue-500/30 border border-blue-400/30 
+             text-white shadow-xl transition-all 
+             hover:bg-blue-600/50 hover:scale-105
+             active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Camera size={28} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter & Background Controls */}
+              <div className="bg-white/20 backdrop-blur-xl flex flex-col md:flex-row items-center justify-evenly rounded-3xl shadow-xl border border-white/40 p-4 gap-4 min-h-[110px]">
+                {/* Camera Filters */}
+                <div className="flex flex-col gap-2 flex-1">
+                  <div className="flex flex-wrap gap-2">
+                    {filters.map(({ id, label, src }) => (
+                      <button
+                        key={id}
+                        onClick={() => !isCapturing && setFilter(id)}
+                        disabled={isCapturing}
+                        className={`group relative w-12 h-12 rounded-xl overflow-hidden transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          filter === id
+                            ? "ring-4 ring-[#153378] scale-105 shadow-md"
+                            : "hover:scale-105"
+                        }`}
+                      >
+                        <Image
+                          src={src}
+                          alt={label}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <span className="text-[8px] text-white font-bold uppercase">
+                            {label}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Background & Layout */}
-                <div className="space-y-6">
-                  <div className="flex justify-center gap-3">
+                {/* Seperator */}
+                <div className="hidden md:block w-[1px] h-16 bg-[#153378]/10 mx-2" />
+
+                {/* Background Option (Colour / Theme) */}
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="flex flex-col bg-white/30 p-1 rounded-2xl border border-white/20">
                     <button
                       onClick={() => {
-                        if (!isCapturing) {
-                          setBackgroundMode("color");
-                          setSelectedOverlayPack("none");
-                          setSelectedBackground(null);
-                        }
+                        setBackgroundMode("color");
+                        setSelectedOverlayPack("none");
+                        setSelectedBackground(null);
                       }}
-                      className={`px-5 py-2 rounded-full font-bold ${
-                        backgroundMode === "color"
-                          ? "bg-[#153378] text-white"
-                          : "bg-white/50 text-[#153378]"
-                      }`}
+                      className={`p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${backgroundMode === "color" ? "bg-[#153378] text-white shadow-md" : "text-[#153378] hover:bg-white/50"}`}
+                      disabled={isCapturing}
                     >
-                      Colour
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m21 11-8-8" />
+                        <path d="M21 16v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+                        <path d="m21 11-10 10" />
+                        <path d="m21 11-10 10" />
+                        <path d="M12 11.5a4.5 4.5 0 0 1-9 0" />
+                      </svg>
                     </button>
                     <button
-                      onClick={() => !isCapturing && setBackgroundMode("image")}
-                      className={`px-5 py-2 rounded-full font-bold ${
-                        backgroundMode === "image"
-                          ? "bg-[#153378] text-white"
-                          : "bg-white/50 text-[#153378]"
-                      }`}
+                      onClick={() => setBackgroundMode("image")}
+                      className={`p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${backgroundMode === "image" ? "bg-[#153378] text-white shadow-md" : "text-[#153378] hover:bg-white/50"}`}
+                      disabled={isCapturing}
                     >
-                      Theme
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect
+                          width="18"
+                          height="18"
+                          x="3"
+                          y="3"
+                          rx="2"
+                          ry="2"
+                        />
+                        <circle cx="9" cy="9" r="2" />
+                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                      </svg>
                     </button>
                   </div>
 
-                  {backgroundMode === "color" && (
-                    <div className="flex justify-center gap-3 flex-wrap">
-                      {[
-                        "#f5e6d8",
-                        "#1e293b",
-                        "#0f3460",
-                        "#e94560",
-                        "#ff6b6b",
-                        "#4ecdc4",
-                        "#ffe66d",
-                        "#a8e6cf",
-                      ].map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => !isCapturing && setBackgroundColor(c)}
-                          style={{ backgroundColor: c }}
-                          className={`w-10 h-10 rounded-full border-2 border-white/80 ${
-                            backgroundColor === c ? "ring-4 ring-[#153378]" : ""
-                          }`}
-                        />
-                      ))}
-                      <input
-                        type="color"
-                        value={backgroundColor}
-                        onChange={(e) =>
-                          !isCapturing && setBackgroundColor(e.target.value)
-                        }
-                        className="w-12 h-12 rounded-full cursor-pointer"
-                      />
-                    </div>
-                  )}
-
-                  {backgroundMode === "image" && (
-                    <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
-                      {backgroundPresets.map((p) => {
-                        const active =
-                          selectedBackground?.overlayPackId === p.overlayPackId;
-                        return (
-                          <motion.button
-                            key={p.overlayPackId}
-                            whileHover={{ scale: 1.08 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() =>
-                              !isCapturing &&
-                              (setSelectedBackground({
-                                src: p.src,
-                                overlayPackId: p.overlayPackId,
-                              }),
-                              setSelectedOverlayPack(p.overlayPackId))
+                  {/* Content Area */}
+                  <div className="flex-1">
+                    {backgroundMode === "color" ? (
+                      <div className="flex flex-wrap gap-1.5 items-center animate-in fade-in zoom-in duration-300">
+                        {[
+                          "#f5e6d8",
+                          "#1e293b",
+                          "#0f3460",
+                          "#285A48",
+                          "#AA2B1D",
+                          "#000000",
+                        ].map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => setBackgroundColor(c)}
+                            style={{ backgroundColor: c }}
+                            disabled={isCapturing}
+                            className={`w-7 h-7 rounded-full border-2 border-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${backgroundColor === c ? "ring-2 ring-[#153378] scale-110 shadow-md" : "hover:scale-110"}`}
+                          />
+                        ))}
+                        <div className="w-[1px] h-5 bg-[#153378]/10 mx-1" />
+                        <div className="relative w-8 h-8 rounded-full border-2 border-white overflow-hidden shadow-sm">
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundImage: `url(${colorPickers})`,
+                              backgroundSize: "cover",
+                            }}
+                          />
+                          <input
+                            type="color"
+                            value={
+                              backgroundColor.startsWith("#")
+                                ? backgroundColor
+                                : "#ffffff"
                             }
-                            className={`relative overflow-hidden rounded-2xl ${
-                              active ? "ring-4 ring-[#153378]" : ""
-                            }`}
-                          >
-                            <div className="aspect-[3/4] relative">
+                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            disabled={isCapturing}
+                            className="absolute inset-0 w-[200%] h-[200%] cursor-pointer opacity-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ transform: "translate(-25%, -25%)" }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {backgroundPresets.map((p) => {
+                          const active =
+                            selectedBackground?.overlayPackId ===
+                            p.overlayPackId;
+                          return (
+                            <button
+                              key={p.overlayPackId}
+                              onClick={() => {
+                                setSelectedBackground({
+                                  src: p.src,
+                                  overlayPackId: p.overlayPackId,
+                                });
+                                setSelectedOverlayPack(p.overlayPackId);
+                              }}
+                              disabled={isCapturing}
+                              className={`relative w-11 h-20 rounded-xl overflow-hidden border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${active ? "border-[#153378] scale-110 shadow-lg" : "border-transparent opacity-70"}`}
+                            >
                               <Image
                                 src={p.thumbnail}
                                 alt={p.name}
@@ -725,99 +798,66 @@ export default function CameraPage() {
                                 className="object-cover"
                                 unoptimized
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                              <p className="absolute bottom-2 left-0 right-0 text-white text-[10px] font-bold text-center">
+                              <p className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white font-bold py-0.5 truncate">
                                 {p.name}
                               </p>
-                              {active && (
-                                <div className="absolute top-1 right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center">
-                                  <svg
-                                    className="w-3.5 h-3.5 text-[#153378]"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                            </div>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={() =>
-                      setGridLayout((prev) => (prev === "4x1" ? "2x2" : "4x1"))
-                    }
-                    disabled={isCapturing}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {gridLayout === "2x2" ? "2×2 Grid" : "4×1 Strip"}
-                  </Button>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {/* Start Button */}
-                <Button
-                  onClick={capturePhotoSeries}
-                  disabled={isCapturing}
-                  size="lg"
-                  className="w-full h-16 text-xl font-bold bg-gradient-to-r from-[#153378] to-[#153378ee] hover:from-[#153378dd] hover:to-[#153378]"
-                >
-                  {isCapturing ? "Capturing..." : "Start Photo Booth"}
-                </Button>
               </div>
             </div>
 
-            {/* KANAN: PREVIEW COLLAGE */}
-            <div className="flex flex-col">
-              <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col flex-1">
-                {collageImages.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-center">
-                    <div>
-                      <Camera
-                        size={100}
-                        className="mx-auto text-[#153378] mb-8"
-                      />
-                      <h2 className="text-4xl font-bold text-[#153378]">
-                        Ready to Shine!
-                      </h2>
-                      <p className="mt-6 text-xl text-[#153378]/80">
-                        Press the button to start taking 4 photos.
-                      </p>
-                    </div>
+            {/* RIGHT: PREVIEW COLLAGE */}
+            <div className="bg-white/20 width-3xl backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col items-center justify-center flex-1 relative">
+              {collageImages.length === 0 ? (
+                <div className="text-center">
+                  <Camera
+                    size={80}
+                    className="mx-auto text-[#153378] mb-6 opacity-40"
+                  />
+                  <h2 className="text-3xl font-bold text-[#153378]">
+                    Ready to Shine!
+                  </h2>
+                  <p className="mt-4 text-lg text-[#153378]/80 px-4">
+                    Press the button to start taking{" "}
+                    {gridLayout === "3x1" ? "3" : "4"} photos.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center w-full max-w-full">
+                  <div className="relative group overflow-hidden bg-white/10">
+                    <canvas
+                      ref={collageCanvasRef}
+                      className="h-auto w-full block mx-auto shadow-lg"
+                      style={{
+                        maxWidth: gridLayout === "3x1" ? "280px" : "230px",
+                        maxHeight: gridLayout === "3x1" ? "560px" : "590px",
+                      }}
+                    />
                   </div>
-                ) : (
-                  <>
-                    <h3 className="text-2xl font-bold text-[#153378] text-center mb-6">
-                      Collage Preview
-                    </h3>
-                    <div className="flex-1 flex items-center justify-center">
-                      <canvas
-                        ref={collageCanvasRef}
-                        className="max-w-full rounded-2xl shadow-2xl"
-                      />
-                    </div>
-                    {collageImages.length === 4 && (
-                      <Button
+                  {/* Preview Control */}
+                  {collageImages.length === (gridLayout === "3x1" ? 3 : 4) && (
+                    <div className="absolute top-3 right-3 flex flex-row gap-2 transition-opacity duration-300 z-30">
+                      <button
                         onClick={downloadCollage}
-                        size="lg"
-                        className="mt-8 bg-gradient-to-r from-[#153378] to-[#153378ee] py-8 text-xl"
+                        className="w-10 h-10 flex items-center justify-center bg-[#153378] text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
                       >
-                        <Download className="mr-3" size={28} /> Download Collage
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
+                        <Download size={18} />
+                      </button>
+                      <button
+                        onClick={() => setCollageImages([])}
+                        className="w-10 h-10 flex items-center justify-center bg-red-600 text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </main>
