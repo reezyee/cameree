@@ -10,7 +10,12 @@ import {
   MoveHorizontal,
 } from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  Reorder,
+  useDragControls,
+} from "framer-motion";
 
 interface TemplateStructure {
   id: string;
@@ -44,19 +49,8 @@ export default function TemplateManager() {
     try {
       const res = await fetch("/api/strips");
       const rawData: TemplateStructure[] = await res.json();
-      
-      const savedOrder = JSON.parse(localStorage.getItem("cameree_order") || "[]");
-      
-      if (savedOrder.length > 0) {
-        const sorted = savedOrder
-          .map((id: string) => rawData.find((t) => t.id === id))
-          .filter((item: TemplateStructure | undefined): item is TemplateStructure => !!item);
-        
-        const missing = rawData.filter((t) => !savedOrder.includes(t.id));
-        setTemplates([...sorted, ...missing]);
-      } else {
-        setTemplates(rawData);
-      }
+
+      setTemplates(rawData);
     } catch (err) {
       console.error("Failed to load templates!", err);
     } finally {
@@ -71,16 +65,16 @@ export default function TemplateManager() {
   const handleReorder = async (newOrder: TemplateStructure[]) => {
     setTemplates(newOrder);
 
-    const orderedIds = newOrder.map(t => t.id);
+    const orderedIds = newOrder.map((t) => t.id);
     localStorage.setItem("cameree_order", JSON.stringify(orderedIds));
 
     try {
       await fetch("/api/strips", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          reorder: true, 
-          ids: orderedIds 
+        body: JSON.stringify({
+          reorder: true,
+          ids: orderedIds,
         }),
       });
     } catch (err) {
@@ -98,9 +92,13 @@ export default function TemplateManager() {
       });
       if (res.ok) {
         setTemplates((prev) => prev.filter((t) => t.id !== deleteId));
-        
-        const savedOrder = JSON.parse(localStorage.getItem("cameree_order") || "[]");
-        const filteredOrder = savedOrder.filter((id: string) => id !== deleteId);
+
+        const savedOrder = JSON.parse(
+          localStorage.getItem("cameree_order") || "[]",
+        );
+        const filteredOrder = savedOrder.filter(
+          (id: string) => id !== deleteId,
+        );
         localStorage.setItem("cameree_order", JSON.stringify(filteredOrder));
 
         setDeleteId(null);
@@ -192,10 +190,11 @@ export default function TemplateManager() {
                 <AlertCircle size={40} />
               </div>
               <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter mb-4 leading-tight">
-                Delete This Template? 
+                Delete This Template?
               </h2>
               <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest leading-relaxed mb-10">
-                This action cannot be undone. All data related to this template will be permanently removed.
+                This action cannot be undone. All data related to this template
+                will be permanently removed.
               </p>
               <div className="flex flex-col gap-3">
                 <button
@@ -230,7 +229,13 @@ export default function TemplateManager() {
 }
 
 // 💡 KOMPONEN BARU: Dipecah biar useDragControls punya sasis siklus hidupnya sendiri per item tanpa melanggar hukum React
-function TemplateCard({ t, setDeleteId }: { t: TemplateStructure; setDeleteId: (id: string) => void }) {
+function TemplateCard({
+  t,
+  setDeleteId,
+}: {
+  t: TemplateStructure;
+  setDeleteId: (id: string) => void;
+}) {
   const dragControls = useDragControls(); // ✅ AMAN! Dipanggil di root body komponen fungsional bersih
   const DISPLAY_HEIGHT = 450;
   const ratio = DISPLAY_HEIGHT / t.canvasHeight;
@@ -248,11 +253,11 @@ function TemplateCard({ t, setDeleteId }: { t: TemplateStructure; setDeleteId: (
         type: "spring",
         stiffness: 220,
         damping: 26,
-        mass: 0.8
+        mass: 0.8,
       }}
       className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative"
     >
-      <div 
+      <div
         onPointerDown={(e) => dragControls.start(e)}
         className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400 cursor-grab active:cursor-grabbing"
       >
@@ -264,8 +269,10 @@ function TemplateCard({ t, setDeleteId }: { t: TemplateStructure; setDeleteId: (
         style={{
           width: `${displayWidth}px`,
           height: `${DISPLAY_HEIGHT}px`,
-          backgroundColor: t.backgroundMode === "color" ? t.backgroundValue : "#fff",
-          backgroundImage: t.backgroundMode === "image" ? `url(${t.backgroundValue})` : "none",
+          backgroundColor:
+            t.backgroundMode === "color" ? t.backgroundValue : "#fff",
+          backgroundImage:
+            t.backgroundMode === "image" ? `url(${t.backgroundValue})` : "none",
           backgroundSize: "cover",
           backgroundPosition: "center",
           borderRadius: "2px",
