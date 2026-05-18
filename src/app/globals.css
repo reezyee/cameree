@@ -127,3 +127,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Aesthetic Scrollbar */
+.aesthetic-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.aesthetic-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.aesthetic-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.aesthetic-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5); /* Warna biru pas di-hover */
+}
+
+.gsap-reveal {
+  opacity: 0;
+  visibility: hidden;
+}

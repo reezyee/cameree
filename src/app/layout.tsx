@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Dancing_Script, Inter } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 
 // Geist (default)
 const geistSans = Geist({
@@ -33,7 +34,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Caméree - Photo Booth",
   description: "Capture retro and modern photos with Caméree.",
-  icons: "images/logo-cameree.ico",
+  icons: {
+    icon: "/images/logo-cameree.ico",
+    shortcut: "/images/logo-cameree.ico",
+    apple: "/images/logo-cameree.ico",
+  },
 };
 
 export default function RootLayout({
@@ -56,7 +61,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} ${inter.variable} antialiased font-sans`}
       >
-        {children}
+        <Providers>{children}</Providers>
         <SpeedInsights />
         <Analytics />
       </body>
