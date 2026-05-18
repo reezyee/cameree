@@ -12,13 +12,13 @@ model StripTemplate {
   name            String
   thumbnailUrl    String
   backgroundMode  String   @default("color")
-  backgroundValue String   
+  backgroundValue String
   totalShots      Int      @default(4)
   canvasWidth     Int      @default(300)
   canvasHeight    Int      @default(900)
-  elements        Json     @default("[]")
-  photoPositions  Json     
-  overlays        Json     
+  elements        Json
+  photoPositions  Json
+  overlays        Json
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
 }

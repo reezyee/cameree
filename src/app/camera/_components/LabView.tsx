@@ -83,6 +83,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
     canvas.width = template.canvasWidth;
     canvas.height = template.canvasHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     if (template.backgroundMode === "color") {
       ctx.fillStyle = template.backgroundValue;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -98,6 +99,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
         bgImg.onerror = () => r(null);
       });
     }
+    
     const allElements = template.elements || [];
     for (const el of allElements) {
       const img = new Image();
@@ -111,6 +113,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
           ctx.translate(centerX, centerY);
           ctx.rotate(((el.rotate || 0) * Math.PI) / 180);
           ctx.translate(-centerX, -centerY);
+          
           if (el.type === "photo") {
             ctx.beginPath();
             if (el.radius === "50%") {
@@ -120,18 +123,33 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
               ctx.roundRect(el.x, el.y, el.w, el.h, r);
             }
             ctx.clip();
-            ctx.filter = filter;
-            const imgRatio = img.width / img.height;
-            const targetRatio = el.w / el.h;
-            let sW, sH, sX, sY;
-            if (imgRatio > targetRatio) {
-              sH = img.height; sW = img.height * targetRatio;
-              sX = (img.width - sW) / 2; sY = 0;
-            } else {
-              sW = img.width; sH = img.width / targetRatio;
-              sX = 0; sY = (img.height - sH) / 2;
+            
+            // 💡 TRIK PRESTISIUS: Gunakan offscreen canvas buat pemrosesan filter agar Safari iOS gak ngambek
+            const offscreenCanvas = document.createElement("canvas");
+            offscreenCanvas.width = el.w;
+            offscreenCanvas.height = el.h;
+            const oCtx = offscreenCanvas.getContext("2d");
+            
+            if (oCtx) {
+              oCtx.filter = filter; // Terapkan filter asli bawaan list data lo Rez!
+              
+              const imgRatio = img.width / img.height;
+              const targetRatio = el.w / el.h;
+              let sW, sH, sX, sY;
+              if (imgRatio > targetRatio) {
+                sH = img.height; sW = img.height * targetRatio;
+                sX = (img.width - sW) / 2; sY = 0;
+              } else {
+                sW = img.width; sH = img.width / targetRatio;
+                sX = 0; sY = (img.height - sH) / 2;
+              }
+              
+              // Draw foto berfilter ke dalam canvas bayangan
+              oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
+              
+              // Terakhir, pindahkan hasil olahan canvas bayangan tadi ke canvas utama lo
+              ctx.drawImage(offscreenCanvas, el.x, el.y);
             }
-            ctx.drawImage(img, sX, sY, sW, sH, el.x, el.y, el.w, el.h);
           } else {
             ctx.filter = "none";
             const imgRatio = img.width / img.height;
@@ -165,6 +183,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       const finalUrl = `${window.location.origin}/download/${sessionId}`;
       await renderFinalCollage();
       const stripData = canvas.toDataURL("image/jpeg", 0.9);
+      
       gifshot.createGIF({
         images: images, interval: 0.4, gifWidth: 400, gifHeight: 300,
         filter: filter === "none" ? "" : filter, numWorkers: 2,
@@ -196,7 +215,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       <div className={`flex flex-row w-full h-full max-w-[1400px] items-center justify-center ${isMobileView ? 'gap-0' : 'gap-10'}`}>
         
         {/* PRINTER AREA */}
-        <div className={`flex-[1.5] h-full flex flex-col items-center justify-center relative`}>
+        <div className="flex-[1.5] h-full flex flex-col items-center justify-center relative">
           <div className={`relative flex flex-col items-center transition-all duration-700 ${isMobileView ? 'scale-[0.89] -translate-x-6' : 'scale-90 md:scale-100'}`}>
             <div className={`${isMobileView ? 'w-[300px] h-18' : 'w-[400px] h-28'} bg-[#222224] rounded-t-[4rem] z-40 shadow-2xl border-x-[15px] border-[#161618] relative flex flex-col items-center`}>
               <div className="mt-4 px-3 py-1 border border-white/5 rounded-full">
@@ -222,11 +241,11 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
             <div className={`relative z-10 overflow-hidden ${isMobileView ? 'h-[62vh] w-[360px]' : 'h-[62vh] w-[460px]'} flex justify-center -mt-1 pointer-events-none`}>
               <motion.div
                 initial={{ y: -800 }}
-                animate={isPrinting ? { y: 0 } : { y: 0 }}
+                animate={{ y: 0 }}
                 transition={{ duration: 8, ease: [0.33, 1, 0.68, 1] }}
                 className="origin-top drop-shadow-2xl shadow-2xl"
               >
-                <canvas ref={canvasRef} className={`${isMobileView ? 'max-h-[62vh]' : 'max-h-[62vh]'} w-auto h-auto block`} />
+                <canvas ref={canvasRef} className="max-h-[62vh] w-auto h-auto block" />
               </motion.div>
             </div>
           </div>
@@ -243,7 +262,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
                 </div>
                 <p className="text-[7px] md:text-[9px] font-black text-[#1a1a1c] uppercase italic text-center tracking-tighter mt-1">Scan to Download</p>
               </motion.div>
-             )} 
+            )} 
           </AnimatePresence>
         </div>
 

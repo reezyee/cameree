@@ -10,7 +10,7 @@ import {
   MoveHorizontal,
 } from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
 
 interface TemplateStructure {
   id: string;
@@ -50,15 +50,15 @@ export default function TemplateManager() {
       if (savedOrder.length > 0) {
         const sorted = savedOrder
           .map((id: string) => rawData.find((t) => t.id === id))
-          .filter((item: unknown): item is TemplateStructure => !!item);
+          .filter((item: TemplateStructure | undefined): item is TemplateStructure => !!item);
         
         const missing = rawData.filter((t) => !savedOrder.includes(t.id));
         setTemplates([...sorted, ...missing]);
       } else {
         setTemplates(rawData);
       }
-    } catch {
-      console.error("Failed to load templates!");
+    } catch (err) {
+      console.error("Failed to load templates!", err);
     } finally {
       setLoading(false);
     }
@@ -83,8 +83,8 @@ export default function TemplateManager() {
           ids: orderedIds 
         }),
       });
-    } catch {
-      console.error("Failed to save new order");
+    } catch (err) {
+      console.error("Failed to save new order", err);
     }
   };
 
@@ -105,7 +105,8 @@ export default function TemplateManager() {
 
         setDeleteId(null);
       }
-    } catch {
+    } catch (err) {
+      console.error("Delete template crash:", err);
       alert("Failed to delete template!");
     }
   };
@@ -167,21 +168,30 @@ export default function TemplateManager() {
                 const ratio = DISPLAY_HEIGHT / t.canvasHeight;
                 const displayWidth = t.canvasWidth * ratio;
                 const allElements = t.elements || [];
+                
+                // Inisialisasi kontrol drag hibrida (Touch + Mouse) per item template
+                // eslint-disable-next-line react-hooks/rules-of-hooks
+                const dragControls = useDragControls();
 
                 return (
                   <Reorder.Item
                     key={t.id}
                     value={t}
                     layout
+                    dragListener={false}
+                    dragControls={dragControls}
                     transition={{
                       type: "spring",
                       stiffness: 220,
                       damping: 26,
                       mass: 0.8
                     }}
-                    className="flex flex-col gap-8 flex-shrink-0 group snap-center cursor-grab active:cursor-grabbing select-none relative"
+                    className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative"
                   >
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400">
+                    <div 
+                      onPointerDown={(e) => dragControls.start(e)}
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400 cursor-grab active:cursor-grabbing"
+                    >
                       <MoveHorizontal size={10} /> Drag to Reorder
                     </div>
 
@@ -247,7 +257,7 @@ export default function TemplateManager() {
                                   </span>
                                 </div>
                               ) : (
-                                /* eslint-disable-next-line @next/next/no-img-element */
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   src={el.src}
                                   crossOrigin="anonymous"
