@@ -163,149 +163,9 @@ export default function TemplateManager() {
               className="flex items-end gap-16"
               style={{ width: "max-content" }}
             >
-              {templates.map((t) => {
-                const DISPLAY_HEIGHT = 450;
-                const ratio = DISPLAY_HEIGHT / t.canvasHeight;
-                const displayWidth = t.canvasWidth * ratio;
-                const allElements = t.elements || [];
-                
-                // Inisialisasi kontrol drag hibrida (Touch + Mouse) per item template
-                // eslint-disable-next-line react-hooks/rules-of-hooks
-                const dragControls = useDragControls();
-
-                return (
-                  <Reorder.Item
-                    key={t.id}
-                    value={t}
-                    layout
-                    dragListener={false}
-                    dragControls={dragControls}
-                    transition={{
-                      type: "spring",
-                      stiffness: 220,
-                      damping: 26,
-                      mass: 0.8
-                    }}
-                    className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative"
-                  >
-                    <div 
-                      onPointerDown={(e) => dragControls.start(e)}
-                      className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400 cursor-grab active:cursor-grabbing"
-                    >
-                      <MoveHorizontal size={10} /> Drag to Reorder
-                    </div>
-
-                    <div
-                      className="relative shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] transition-all duration-700 group-hover:scale-[1] group-hover:-translate-y-1.5"
-                      style={{
-                        width: `${displayWidth}px`,
-                        height: `${DISPLAY_HEIGHT}px`,
-                        backgroundColor:
-                          t.backgroundMode === "color"
-                            ? t.backgroundValue
-                            : "#fff",
-                        backgroundImage:
-                          t.backgroundMode === "image"
-                            ? `url(${t.backgroundValue})`
-                            : "none",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        borderRadius: "2px",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {allElements.map((el, idx) => {
-                        let scaledRadius = "0px";
-                        if (el.radius === "50%") {
-                          scaledRadius = "50%";
-                        } else if (el.radius) {
-                          scaledRadius = el.radius
-                            .split(" ")
-                            .map((r: string) => {
-                              const val = parseFloat(r);
-                              return isNaN(val) ? r : `${val * ratio}px`;
-                            })
-                            .join(" ");
-                        }
-
-                        return (
-                          <div
-                            key={idx}
-                            className="absolute overflow-hidden"
-                            style={{
-                              left: el.x * ratio,
-                              top: el.y * ratio,
-                              width: el.w * ratio,
-                              height: el.h * ratio,
-                              transform: `rotate(${el.rotate || 0}deg)`,
-                              borderRadius: scaledRadius,
-                              zIndex: idx,
-                            }}
-                          >
-                            <div className="w-full h-full relative flex items-center justify-center">
-                              {el.type === "photo" ? (
-                                <div className="w-full h-full bg-[#bababa] flex items-center justify-center border border-black/5 relative">
-                                  <div className="absolute inset-0 opacity-[0.05] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-repeat" />
-                                  <span
-                                    className="font-black italic text-black/20 z-10 select-none"
-                                    style={{ fontSize: `${28 * ratio}px` }}
-                                  >
-                                    0
-                                    {allElements
-                                      .filter((item) => item.type === "photo")
-                                      .indexOf(el) + 1}
-                                  </span>
-                                </div>
-                              ) : (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={el.src}
-                                  crossOrigin="anonymous"
-                                  className="w-full h-full object-contain pointer-events-none"
-                                  alt=""
-                                />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-2 backdrop-blur-sm z-[100] pointer-events-auto">
-                        <Link
-                          href={`/admin/editor?id=${t.id}`}
-                          className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all duration-300"
-                        >
-                          <Edit3 size={18} />
-                        </Link>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(t.id);
-                          }}
-                          className="w-12 h-12 cursor-pointer bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all duration-300"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="px-2 border-l-2 border-white group-hover:border-blue-600 transition-colors duration-500 text-center">
-                      <h3 className="text-white font-black italic uppercase text-sm tracking-[0.1em] leading-none mb-2">
-                        {t.name}
-                      </h3>
-                      <div className="flex items-center justify-center gap-3">
-                        <span className="text-[9px] font-bold text-zinc-200 uppercase tracking-widest">
-                          {t.totalShots} Frames
-                        </span>
-                        <div className="w-1 h-1 bg-zinc-300 rounded-full" />
-                        <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">
-                          {t.canvasWidth}px x {t.canvasHeight}px
-                        </span>
-                      </div>
-                    </div>
-                  </Reorder.Item>
-                );
-              })}
+              {templates.map((t) => (
+                <TemplateCard key={t.id} t={t} setDeleteId={setDeleteId} />
+              ))}
             </Reorder.Group>
           </div>
         </div>
@@ -366,5 +226,141 @@ export default function TemplateManager() {
         }
       `}</style>
     </div>
+  );
+}
+
+// 💡 KOMPONEN BARU: Dipecah biar useDragControls punya sasis siklus hidupnya sendiri per item tanpa melanggar hukum React
+function TemplateCard({ t, setDeleteId }: { t: TemplateStructure; setDeleteId: (id: string) => void }) {
+  const dragControls = useDragControls(); // ✅ AMAN! Dipanggil di root body komponen fungsional bersih
+  const DISPLAY_HEIGHT = 450;
+  const ratio = DISPLAY_HEIGHT / t.canvasHeight;
+  const displayWidth = t.canvasWidth * ratio;
+  const allElements = t.elements || [];
+
+  return (
+    <Reorder.Item
+      key={t.id}
+      value={t}
+      layout
+      dragListener={false}
+      dragControls={dragControls}
+      transition={{
+        type: "spring",
+        stiffness: 220,
+        damping: 26,
+        mass: 0.8
+      }}
+      className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative"
+    >
+      <div 
+        onPointerDown={(e) => dragControls.start(e)}
+        className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400 cursor-grab active:cursor-grabbing"
+      >
+        <MoveHorizontal size={10} /> Drag to Reorder
+      </div>
+
+      <div
+        className="relative shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] transition-all duration-700 group-hover:scale-[1] group-hover:-translate-y-1.5"
+        style={{
+          width: `${displayWidth}px`,
+          height: `${DISPLAY_HEIGHT}px`,
+          backgroundColor: t.backgroundMode === "color" ? t.backgroundValue : "#fff",
+          backgroundImage: t.backgroundMode === "image" ? `url(${t.backgroundValue})` : "none",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          borderRadius: "2px",
+          overflow: "hidden",
+        }}
+      >
+        {allElements.map((el, idx) => {
+          let scaledRadius = "0px";
+          if (el.radius === "50%") {
+            scaledRadius = "50%";
+          } else if (el.radius) {
+            scaledRadius = el.radius
+              .split(" ")
+              .map((r: string) => {
+                const val = parseFloat(r);
+                return isNaN(val) ? r : `${val * ratio}px`;
+              })
+              .join(" ");
+          }
+
+          return (
+            <div
+              key={idx}
+              className="absolute overflow-hidden"
+              style={{
+                left: el.x * ratio,
+                top: el.y * ratio,
+                width: el.w * ratio,
+                height: el.h * ratio,
+                transform: `rotate(${el.rotate || 0}deg)`,
+                borderRadius: scaledRadius,
+                zIndex: idx,
+              }}
+            >
+              <div className="w-full h-full relative flex items-center justify-center">
+                {el.type === "photo" ? (
+                  <div className="w-full h-full bg-[#bababa] flex items-center justify-center border border-black/5 relative">
+                    <div className="absolute inset-0 opacity-[0.05] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-repeat" />
+                    <span
+                      className="font-black italic text-black/20 z-10 select-none"
+                      style={{ fontSize: `${28 * ratio}px` }}
+                    >
+                      0
+                      {allElements
+                        .filter((item) => item.type === "photo")
+                        .indexOf(el) + 1}
+                    </span>
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={el.src}
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-contain pointer-events-none"
+                    alt=""
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-2 backdrop-blur-sm z-[100] pointer-events-auto">
+          <Link
+            href={`/admin/editor?id=${t.id}`}
+            className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all duration-300"
+          >
+            <Edit3 size={18} />
+          </Link>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteId(t.id);
+            }}
+            className="w-12 h-12 cursor-pointer bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all duration-300"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="px-2 border-l-2 border-white group-hover:border-blue-600 transition-colors duration-500 text-center">
+        <h3 className="text-white font-black italic uppercase text-sm tracking-[0.1em] leading-none mb-2">
+          {t.name}
+        </h3>
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-[9px] font-bold text-zinc-200 uppercase tracking-widest">
+            {t.totalShots} Frames
+          </span>
+          <div className="w-1 h-1 bg-zinc-300 rounded-full" />
+          <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">
+            {t.canvasWidth}px x {t.canvasHeight}px
+          </span>
+        </div>
+      </div>
+    </Reorder.Item>
   );
 }
