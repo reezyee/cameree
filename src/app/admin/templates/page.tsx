@@ -49,7 +49,6 @@ export default function TemplateManager() {
     try {
       const res = await fetch("/api/strips");
       const rawData: TemplateStructure[] = await res.json();
-
       setTemplates(rawData);
     } catch (err) {
       console.error("Failed to load templates!", err);
@@ -64,9 +63,7 @@ export default function TemplateManager() {
 
   const handleReorder = async (newOrder: TemplateStructure[]) => {
     setTemplates(newOrder);
-
     const orderedIds = newOrder.map((t) => t.id);
-    localStorage.setItem("cameree_order", JSON.stringify(orderedIds));
 
     try {
       await fetch("/api/strips", {
@@ -92,15 +89,6 @@ export default function TemplateManager() {
       });
       if (res.ok) {
         setTemplates((prev) => prev.filter((t) => t.id !== deleteId));
-
-        const savedOrder = JSON.parse(
-          localStorage.getItem("cameree_order") || "[]",
-        );
-        const filteredOrder = savedOrder.filter(
-          (id: string) => id !== deleteId,
-        );
-        localStorage.setItem("cameree_order", JSON.stringify(filteredOrder));
-
         setDeleteId(null);
       }
     } catch (err) {
@@ -228,7 +216,6 @@ export default function TemplateManager() {
   );
 }
 
-// 💡 KOMPONEN BARU: Dipecah biar useDragControls punya sasis siklus hidupnya sendiri per item tanpa melanggar hukum React
 function TemplateCard({
   t,
   setDeleteId,
@@ -236,7 +223,7 @@ function TemplateCard({
   t: TemplateStructure;
   setDeleteId: (id: string) => void;
 }) {
-  const dragControls = useDragControls(); // ✅ AMAN! Dipanggil di root body komponen fungsional bersih
+  const dragControls = useDragControls();
   const DISPLAY_HEIGHT = 450;
   const ratio = DISPLAY_HEIGHT / t.canvasHeight;
   const displayWidth = t.canvasWidth * ratio;

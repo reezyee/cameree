@@ -79,8 +79,22 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     
+    // 💡 REORDER LOGIC FIX: Sekarang beneran nulis dan nge-update TiDB Cloud lo, Rez!
     if (body.reorder && Array.isArray(body.ids)) {
-      return NextResponse.json({ message: "Reorder success!" });
+      const idArray: string[] = body.ids;
+      
+      // Kita update nilai createdAt bertahap per mili-second biar urutannya presisi pas di-GET
+      const baseTime = Date.now();
+      for (let i = 0; i < idArray.length; i++) {
+        await prisma.stripTemplate.update({
+          where: { id: idArray[i] },
+          data: {
+            createdAt: new Date(baseTime + i * 1000) // di-jarak 1 detik per item template
+          }
+        });
+      }
+      
+      return NextResponse.json({ message: "Reorder successfully updated in TiDB Cloud!" });
     }
 
     const { id, ...updateData } = body;
@@ -122,7 +136,8 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json(updatedStrip);
-  } catch {
+  } catch (error) {
+    console.error("PUT ERROR:", error);
     return NextResponse.json({ error: "Failed to update template" }, { status: 500 });
   }
 }
@@ -134,7 +149,7 @@ export async function GET() {
         isActive: true, 
       },
       orderBy: {
-        createdAt: "desc"
+        createdAt: "asc" // 💡 FIX: Urutkan dari waktu terlama ke terbaru (Akan nurut sama hasil reorder!)
       }
     });
     return NextResponse.json(dbData);
