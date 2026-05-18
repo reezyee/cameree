@@ -14,7 +14,6 @@ import {
   motion,
   AnimatePresence,
   Reorder,
-  useDragControls,
 } from "framer-motion";
 
 interface TemplateStructure {
@@ -223,7 +222,6 @@ function TemplateCard({
   t: TemplateStructure;
   setDeleteId: (id: string) => void;
 }) {
-  const dragControls = useDragControls();
   const DISPLAY_HEIGHT = 450;
   const ratio = DISPLAY_HEIGHT / t.canvasHeight;
   const displayWidth = t.canvasWidth * ratio;
@@ -234,20 +232,15 @@ function TemplateCard({
       key={t.id}
       value={t}
       layout
-      dragListener={false}
-      dragControls={dragControls}
       transition={{
         type: "spring",
         stiffness: 220,
         damping: 26,
         mass: 0.8,
       }}
-      className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative"
+      className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative cursor-grab active:cursor-grabbing"
     >
-      <div
-        onPointerDown={(e) => dragControls.start(e)}
-        className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400 cursor-grab active:cursor-grabbing"
-      >
+      <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400">
         <MoveHorizontal size={10} /> Drag to Reorder
       </div>
 
