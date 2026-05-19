@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowRight } from "lucide-react";
 
-// Struktur strict types pengganti any untuk meloloskan kompilasi compiler
 interface LobbyTemplate {
   id: string;
   name: string;
@@ -33,11 +32,11 @@ interface LobbyViewProps {
   selectedTemplate: LobbyTemplate | null;
   setSelectedTemplate: (t: LobbyTemplate) => void;
   onStart: () => void;
-  isMobileView: boolean; // Nerima logic dari parent
+  isMobileView: boolean;
 }
 
 export default function LobbyView({
-  templates,
+  templates: initialTemplates,
   loading,
   selectedTemplate,
   setSelectedTemplate,
@@ -46,6 +45,14 @@ export default function LobbyView({
 }: LobbyViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [windowSize, setWindowSize] = useState({ w: 0, h: 0 });
+  
+  // 💡 INTERNAL STATE: Biar data polling background bisa langsung ngerubah urutan template di layar live user
+  const [liveTemplates, setLiveTemplates] = useState<LobbyTemplate[]>(initialTemplates);
+
+  // Sync state internal jika ada perubahan props awal dari parent
+  useEffect(() => {
+    setLiveTemplates(initialTemplates);
+  }, [initialTemplates]);
 
   useEffect(() => {
     const handleResize = () =>
@@ -54,6 +61,26 @@ export default function LobbyView({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // 💡 SUNTIKAN REAL-TIME INTERNALS: Tiap 3 detik Lobby bakal ngecheck urutan terbaru ke database TiDB Cloud
+  useEffect(() => {
+    if (loading) return;
+
+    const silentFetch = async () => {
+      try {
+        const res = await fetch("/api/strips");
+        if (res.ok) {
+          const freshData: LobbyTemplate[] = await res.json();
+          setLiveTemplates(freshData);
+        }
+      } catch (err) {
+        console.error("Silent sync lobby failed:", err);
+      }
+    };
+
+    const interval = setInterval(silentFetch, 3000);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   if (loading) {
     return (
@@ -67,7 +94,7 @@ export default function LobbyView({
     <div className="w-full h-full flex items-center justify-center overflow-hidden relative">
       <div
         ref={scrollRef}
-        className={`h-full w-full overflow-x-auto overflow-y-hidden flex items-center no-scrollbar snap-x snap-mandatory ${
+        className={`h-full w-full overflow-x-auto overflow-y-hidden no-scrollbar flex items-center snap-x snap-mandatory ${
           isMobileView ? "px-[30vw]" : "px-[40vw]"
         }`}
         style={{ 
@@ -76,7 +103,7 @@ export default function LobbyView({
         }}
       >
         <div className={`flex items-center ${isMobileView ? "gap-4" : "gap-6"} py-10`}>
-          {templates.map((t) => {
+          {liveTemplates.map((t) => {
             const DISPLAY_HEIGHT = Math.min(windowSize.h * 0.55, 600);
             const ratio = DISPLAY_HEIGHT / t.canvasHeight;
             const displayWidth = t.canvasWidth * ratio;
@@ -159,7 +186,7 @@ export default function LobbyView({
                               </span>
                             </div>
                           ) : (
-                            /* eslint-disable-next-line @next/next/no-img-element */
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={el.src}
                               className="w-full h-full object-contain"
@@ -174,7 +201,7 @@ export default function LobbyView({
 
                 <div className="text-center transition-all duration-500">
                   <p className={`font-black italic text-[#153378] tracking-wider ${
-                    isMobileView ? "text-[10px]" : "text-md"
+                    isMobileView ? "text-[10px]" : "text-[11px] md:text-md"
                   }`}>
                     {t.name}
                   </p>
