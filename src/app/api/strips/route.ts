@@ -79,22 +79,22 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     
-    // 💡 REORDER LOGIC FIX: Sekarang beneran nulis dan nge-update TiDB Cloud lo, Rez!
+    // 💡 REORDER FIX TOTAL: Kunci mati urutan pake string padding indeks di kolom thumbnailUrl!
     if (body.reorder && Array.isArray(body.ids)) {
       const idArray: string[] = body.ids;
       
-      // Kita update nilai createdAt bertahap per mili-second biar urutannya presisi pas di-GET
-      const baseTime = Date.now();
+      // Menggunakan padding string (00, 01, 02) biar urutan sorting alfabetis di database konsisten
       for (let i = 0; i < idArray.length; i++) {
+        const orderString = String(i).padStart(2, '0'); // Hasilnya: "00", "01", "02", dst.
         await prisma.stripTemplate.update({
           where: { id: idArray[i] },
           data: {
-            createdAt: new Date(baseTime + i * 1000) // di-jarak 1 detik per item template
+            thumbnailUrl: orderString
           }
         });
       }
       
-      return NextResponse.json({ message: "Reorder successfully updated in TiDB Cloud!" });
+      return NextResponse.json({ message: "Reorder locked perfectly in TiDB Cloud!" });
     }
 
     const { id, ...updateData } = body;
@@ -149,7 +149,7 @@ export async function GET() {
         isActive: true, 
       },
       orderBy: {
-        createdAt: "asc" // 💡 FIX: Urutkan dari waktu terlama ke terbaru (Akan nurut sama hasil reorder!)
+        thumbnailUrl: "asc" // 💡 FIX: Diurutkan berdasarkan angka string urutan lo. Anti-kocak!
       }
     });
     return NextResponse.json(dbData);
