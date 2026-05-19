@@ -57,14 +57,21 @@ export default function TemplateManager() {
   };
 
   useEffect(() => {
-    // 💡 KEMBALIKAN KE JALUR BENER REZ: Cukup fetch sekali pas open page. 
-    // Hapus total setInterval jahanam biar gak ngganggu pas lo lagi nge-drag card!
     fetchTemplates();
   }, []);
 
   const handleReorder = async (newOrder: TemplateStructure[]) => {
     setTemplates(newOrder);
     const orderedIds = newOrder.map((t) => t.id);
+
+    // 💡 TRIGGER REAL-TIME SIARAN: Kirim data urutan terbaru ke komponen Lobby secara live!
+    try {
+      const channel = new BroadcastChannel("cameree_realtime_sync");
+      channel.postMessage({ type: "REORDER_EVENT", newOrder });
+      channel.close();
+    } catch (e) {
+      console.error("Broadcast failed", e);
+    }
 
     try {
       await fetch("/api/strips", {

@@ -46,10 +46,8 @@ export default function LobbyView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [windowSize, setWindowSize] = useState({ w: 0, h: 0 });
   
-  // INTERNAL STATE: Biar data polling background bisa langsung ngerubah urutan template di layar live user
   const [liveTemplates, setLiveTemplates] = useState<LobbyTemplate[]>(initialTemplates);
 
-  // Sync state internal jika ada perubahan props awal dari parent
   useEffect(() => {
     setLiveTemplates(initialTemplates);
   }, [initialTemplates]);
@@ -62,7 +60,21 @@ export default function LobbyView({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 💡 TETAP PERTAHANKAN: Interval polling khusus layar user biar otomatis sinkron sama setelan admin
+  // 💡 JALUR SAKTI REAL-TIME: Mendengar bisikan langsung dari tab Admin pas lo lagi nge-drag!
+  useEffect(() => {
+    const channel = new BroadcastChannel("cameree_realtime_sync");
+    
+    channel.onmessage = (event) => {
+      if (event.data && event.data.type === "REORDER_EVENT") {
+        // Detik ini juga urutan di Lobby kegeser instan tanpa nunggu interval atau reload!
+        setLiveTemplates(event.data.newOrder);
+      }
+    };
+
+    return () => channel.close();
+  }, []);
+
+  // Polling background tiap 5 detik tetep dinyalakan buat nge-sync HP user publik luar
   useEffect(() => {
     if (loading) return;
 
@@ -78,7 +90,6 @@ export default function LobbyView({
       }
     };
 
-    // Diubah ke 5 detik (5000ms) biar transisi antar-perubahan urutan lebih rileks dan smooth di HP
     const interval = setInterval(silentFetch, 5000);
     return () => clearInterval(interval);
   }, [loading]);

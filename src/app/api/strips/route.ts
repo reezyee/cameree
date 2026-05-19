@@ -82,17 +82,21 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     
+    // 💡 REORDER LOGIC FIX SEJATI: Menulis urutan permanen lewat sasis jarak tanggal statis
     if (body.reorder && Array.isArray(body.ids)) {
       const idArray: string[] = body.ids;
       
-      for (let i = 0; i < idArray.length; i++) {
-        const orderString = String(i).padStart(2, '0');
+      // Menggunakan loop synchronous biar TiDB Cloud bener-bener antre nyimpen datanya
+      let index = 0;
+      for (const targetId of idArray) {
         await prisma.stripTemplate.update({
-          where: { id: idArray[i] },
+          where: { id: targetId },
           data: {
-            thumbnailUrl: orderString
+            // Kita kasih jarak 1 hari penuh (86400000ms) per urutan biar anti-balapan di server cloud
+            createdAt: new Date(1700000000000 + (index * 86400000))
           }
         });
+        index++;
       }
       
       return NextResponse.json({ message: "Reorder locked perfectly in TiDB Cloud!" });
@@ -150,7 +154,7 @@ export async function GET() {
         isActive: true, 
       },
       orderBy: {
-        thumbnailUrl: "asc"
+        createdAt: "asc" // 💡 FIX: Diurutkan secara linear dari tanggal terlama ke terbaru. Pasti kokoh!
       }
     });
     return NextResponse.json(dbData);
@@ -176,4 +180,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: "Failed to delete template" }, { status: 500 });
   }
-}
+} 
