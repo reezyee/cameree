@@ -58,30 +58,33 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
     { id: "vivid", label: "Vivid Retro", class: "contrast-110 brightness-110 saturate-125" }
   ];
 
-  // 💡 UNLOCK SOUND IPHONE SEJATI: Inisialisasi audio murni dipicu dari ketukan user pertama kali
-  const initAndPlayAudio = useCallback(() => {
+  // Inisialisasi audio sejak awal secara aman
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("/sounds/print.mp3");
+      audioRef.current.load();
+    }
+  }, []);
+
+  // 💡 FUNCTION AUDIO AUTOMATIC: Dipanggil murni otomatis pas printer mulai mencetak
+  const triggerAutomaticPrintSound = useCallback(() => {
     if (hasPlayedRef.current) return;
-    
-    try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio("/sounds/print.mp3");
-      }
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
       audioRef.current.play()
         .then(() => {
           hasPlayedRef.current = true;
         })
         .catch((err) => {
-          console.log("Waiting for crisp user click to unlock safari audio core...", err);
+          console.log("iOS Autoplay blocked. Audio will trigger instantly upon screen touch:", err);
         });
-    } catch (e) {
-      console.error("Audio core fail", e);
     }
   }, []);
 
   useEffect(() => {
     const autoStart = setTimeout(() => {
       setIsPrinting(true);
-      initAndPlayAudio();
+      triggerAutomaticPrintSound(); // Jalankan otomatis tanpa nunggu klik filter!
     }, 800);
 
     const stopPrinting = setTimeout(() => {
@@ -92,7 +95,16 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       clearTimeout(autoStart);
       clearTimeout(stopPrinting);
     };
-  }, [initAndPlayAudio]);
+  }, [triggerAutomaticPrintSound]);
+
+  // Fungsi pembantu buat paksa unlock audio core iPhone pas ada interaksi user apa pun
+  const unlockAudioContext = () => {
+    if (audioRef.current && !hasPlayedRef.current && isPrinting) {
+      audioRef.current.play()
+        .then(() => { hasPlayedRef.current = true; })
+        .catch(() => {});
+    }
+  };
 
   const renderFinalCollage = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -125,7 +137,6 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       img.src = el.type === "photo" ? images[allElements.filter((it) => it.type === "photo").indexOf(el)] : el.src || "";
       img.crossOrigin = "anonymous";
       
-      // 💡 FIX FILTER SAKLEK SAFARI: Paksa nungguin loading state kelar 100% biar gak ke-bypass cache browser
       await new Promise((resolve) => {
         const processImage = () => {
           ctx.save();
@@ -145,12 +156,26 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
             }
             ctx.clip();
             
+            // 💡 FIX FILTER MUTLAK IPHONE: Bikin satu canvas bayangan berukuran pas sesuai box elemen
             const offscreenCanvas = document.createElement("canvas");
             offscreenCanvas.width = el.w;
             offscreenCanvas.height = el.h;
             const oCtx = offscreenCanvas.getContext("2d");
             
             if (oCtx) {
+              // Setel filter langsung ke objek induk tunggal WebKit Safari menggunakan String Gambar Murni
+              if (filter === "grayscale") {
+                oCtx.filter = "grayscale(100%) contrast(120%) brightness(95%)";
+              } else if (filter === "sepia") {
+                oCtx.filter = "sepia(60%) contrast(110%) brightness(100%)";
+              } else if (filter === "classic") {
+                oCtx.filter = "grayscale(100%) sepia(25%) contrast(135%)";
+              } else if (filter === "vivid") {
+                oCtx.filter = "contrast(115%) brightness(105%) saturate(130%)";
+              } else {
+                oCtx.filter = "none";
+              }
+              
               const imgRatio = img.width / img.height;
               const targetRatio = el.w / el.h;
               let sW, sH, sX, sY;
@@ -162,30 +187,11 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
                 sX = 0; sY = (img.height - sH) / 2;
               }
 
+              // 💡 KUNCI UTAMA SAFARI: Menggambar wajib murni dari objek Image (img), bukan dari objek Canvas penengah!
               oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
-
-              const filteredCanvas = document.createElement("canvas");
-              filteredCanvas.width = el.w;
-              filteredCanvas.height = el.h;
-              const fCtx = filteredCanvas.getContext("2d");
-
-              if (fCtx) {
-                if (filter === "grayscale") {
-                  fCtx.filter = "grayscale(100%) contrast(120%)";
-                } else if (filter === "sepia") {
-                  fCtx.filter = "sepia(60%) contrast(110%)";
-                } else if (filter === "classic") {
-                  fCtx.filter = "grayscale(100%) sepia(20%) contrast(130%)";
-                } else if (filter === "vivid") {
-                  fCtx.filter = "contrast(115%) brightness(110%) saturate(125%)";
-                } else {
-                  fCtx.filter = "none";
-                }
-
-                // Gambar ulang ke canvas utama setelah filter WebKit sukses diaplikasikan
-                fCtx.drawImage(offscreenCanvas, 0, 0);
-                ctx.drawImage(filteredCanvas, el.x, el.y);
-              }
+              
+              // Pindahkan hasil akhir canvas berfilter langsung ke canvas utama
+              ctx.drawImage(offscreenCanvas, el.x, el.y);
             }
           } else {
             ctx.filter = "none";
@@ -206,8 +212,8 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
         };
 
         if (img.complete) {
-          // Kalau masuk cache browser, kasih delay 50ms biar thread filter Safari gak ke-bypass!
-          setTimeout(processImage, 50);
+          // Kasih jeda waktu aman 30ms biar sinkronisasi render thread WebKit gak tabrakan
+          setTimeout(processImage, 30);
         } else {
           img.onload = processImage;
           img.onerror = () => resolve(null);
@@ -219,8 +225,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
   useEffect(() => { renderFinalCollage(); }, [renderFinalCollage]);
 
   const handleFilterClick = (filterId: string) => {
-    initAndPlayAudio(); // Langsung unlock paksa audio engine iPhone pas klik filter Rez!
-    setFilter(filterId);
+    setFilter(filterId); // Murni cuma ganti state filter, gak bakal ganggu sound printer lagi!
   };
 
   const handleFinalizeAndUpload = async () => {
@@ -266,8 +271,8 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       className="fixed inset-0 w-full h-full bg-[#d8d2c9] flex items-center justify-center p-4 overflow-hidden"
-      onTouchStart={initAndPlayAudio} // 💡 SAKTI NYA DI SINI Rez: Sentuhan pertama di HP langsung njebol proteksi Apple!
-      onClick={initAndPlayAudio}
+      onTouchStart={unlockAudioContext} // Sentuhan pertama user otomatis melepas kunci audio iPhone!
+      onClick={unlockAudioContext}
     >
       <div className={`flex flex-row w-full h-full max-w-[1400px] items-center justify-center ${isMobileView ? 'gap-0' : 'gap-10'}`}>
         
