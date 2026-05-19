@@ -48,32 +48,53 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
   const [isUploading, setIsUploading] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasPlayedRef = useRef(false); // 💡 Penanda agar audio cuma bunyi 1 kali pas masuk
 
   const filters = [
     { id: "none", label: "Original", class: "" },
-    { id: "grayscale(100%) contrast(1.2) brightness(0.9)", label: "Deep Analog", class: "grayscale contrast-125 brightness-90" },
-    { id: "sepia(0.5) contrast(1.1) brightness(1.0) saturate(0.8)", label: "Creamy Film", class: "sepia-[0.5] contrast-110 saturate-80" },
-    { id: "grayscale(100%) sepia(0.2) contrast(1.3)", label: "Classic B&W", class: "grayscale sepia-[0.2] contrast-150" },
-    { id: "contrast(1.1) brightness(1.1) saturate(1.2)", label: "Vivid Retro", class: "contrast-110 brightness-110 saturate-125" }
+    { id: "grayscale", label: "Deep Analog", class: "grayscale contrast-125 brightness-90" },
+    { id: "sepia", label: "Creamy Film", class: "sepia-[0.5] contrast-110 saturate-80" },
+    { id: "classic", label: "Classic B&W", class: "grayscale sepia-[0.2] contrast-150" },
+    { id: "vivid", label: "Vivid Retro", class: "contrast-110 brightness-110 saturate-125" }
   ];
 
+  // Inisialisasi audio sejak awal
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio("/sounds/print.mp3");
       audioRef.current.load();
     }
+  }, []);
+
+  // Fungsi memicu suara printer secara aman
+  const playPrintSound = useCallback(() => {
+    if (hasPlayedRef.current) return; // Kalau udah bunyi sekali, kunci! Gak bakal bunyi lagi
+    if (audioRef.current) {
+      audioRef.current.play()
+        .then(() => {
+          hasPlayedRef.current = true;
+        })
+        .catch((err) => {
+          console.log("Waiting for user gesture to unlock audio context...", err);
+        });
+    }
+  }, []);
+
+  useEffect(() => {
     const autoStart = setTimeout(() => {
       setIsPrinting(true);
-      audioRef.current?.play().catch(() => {});
+      playPrintSound();
     }, 800);
+
     const stopPrinting = setTimeout(() => {
       setIsPrinting(false);
     }, 7000); 
+
     return () => {
       clearTimeout(autoStart);
       clearTimeout(stopPrinting);
     };
-  }, []);
+  }, [playPrintSound]);
 
   const renderFinalCollage = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -124,15 +145,13 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
             }
             ctx.clip();
             
-            // 💡 TRIK PRESTISIUS: Gunakan offscreen canvas buat pemrosesan filter agar Safari iOS gak ngambek
+            // 💡 FIX FILTER SAFARI IPHONE: Bikin canvas penengah buat pre-render downscaling gambar raksasa kamera depan
             const offscreenCanvas = document.createElement("canvas");
             offscreenCanvas.width = el.w;
             offscreenCanvas.height = el.h;
             const oCtx = offscreenCanvas.getContext("2d");
             
             if (oCtx) {
-              oCtx.filter = filter; // Terapkan filter asli bawaan list data lo Rez!
-              
               const imgRatio = img.width / img.height;
               const targetRatio = el.w / el.h;
               let sW, sH, sX, sY;
@@ -143,12 +162,33 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
                 sW = img.width; sH = img.width / targetRatio;
                 sX = 0; sY = (img.height - sH) / 2;
               }
-              
-              // Draw foto berfilter ke dalam canvas bayangan
+
+              // 1. Gambar objek mentah ke canvas kecil dulu biar memorinya enteng di iOS
               oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
-              
-              // Terakhir, pindahkan hasil olahan canvas bayangan tadi ke canvas utama lo
-              ctx.drawImage(offscreenCanvas, el.x, el.y);
+
+              // 2. Buat canvas final berfilter khusus untuk WebKit Safari
+              const filteredCanvas = document.createElement("canvas");
+              filteredCanvas.width = el.w;
+              filteredCanvas.height = el.h;
+              const fCtx = filteredCanvas.getContext("2d");
+
+              if (fCtx) {
+                if (filter === "grayscale") {
+                  fCtx.filter = "grayscale(100%) contrast(120%)";
+                } else if (filter === "sepia") {
+                  fCtx.filter = "sepia(60%) contrast(110%)";
+                } else if (filter === "classic") {
+                  fCtx.filter = "grayscale(100%) sepia(20%) contrast(130%)";
+                } else if (filter === "vivid") {
+                  fCtx.filter = "contrast(115%) brightness(110%) saturate(125%)";
+                } else {
+                  fCtx.filter = "none";
+                }
+
+                // Ambil dari canvas kecil tadi, render ke filtered canvas. Pasti tembus filternya di iPhone!
+                fCtx.drawImage(offscreenCanvas, 0, 0);
+                ctx.drawImage(filteredCanvas, el.x, el.y);
+              }
             }
           } else {
             ctx.filter = "none";
@@ -174,6 +214,11 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
 
   useEffect(() => { renderFinalCollage(); }, [renderFinalCollage]);
 
+  // 💡 SEKARANG AMAN REZ: Cuma set filter state doang, gak bakal mainin audio berisik lagi!
+  const handleFilterClick = (filterId: string) => {
+    setFilter(filterId);
+  };
+
   const handleFinalizeAndUpload = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -184,9 +229,15 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       await renderFinalCollage();
       const stripData = canvas.toDataURL("image/jpeg", 0.9);
       
+      let gifFilterString = "";
+      if (filter === "grayscale") gifFilterString = "grayscale(100%)";
+      else if (filter === "sepia") gifFilterString = "sepia(60%)";
+      else if (filter === "classic") gifFilterString = "grayscale(100%) sepia(20%)";
+      else if (filter === "vivid") gifFilterString = "contrast(115%)";
+
       gifshot.createGIF({
         images: images, interval: 0.4, gifWidth: 400, gifHeight: 300,
-        filter: filter === "none" ? "" : filter, numWorkers: 2,
+        filter: gifFilterString, numWorkers: 2,
       }, async (obj: GifshotResponse) => {
         const upload = async (file: string, suf: string) => {
           const formData = new FormData();
@@ -211,6 +262,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       className="fixed inset-0 w-full h-full bg-[#d8d2c9] flex items-center justify-center p-4 overflow-hidden"
+      onClick={playPrintSound} // 💡 SUNTIKAN PEMICU IPHONE: Sekali sentuh layar pas masuk, audio lsg ke-unlock!
     >
       <div className={`flex flex-row w-full h-full max-w-[1400px] items-center justify-center ${isMobileView ? 'gap-0' : 'gap-10'}`}>
         
@@ -277,7 +329,7 @@ export default function LabView({ images, template, onRetake, isMobileView }: La
             {filters.map((f) => (
               <button
                 key={f.id}
-                onClick={() => setFilter(f.id)}
+                onClick={() => handleFilterClick(f.id)}
                 disabled={isUploading}
                 className={`w-full flex items-center mt-1 gap-3 md:gap-4 p-2 md:p-3 rounded-2xl border-2 transition-all ${filter === f.id ? "bg-[#153378] border-[#153378] text-white shadow-xl -translate-y-1" : "bg-white/60 border-transparent hover:border-white/80 text-[#153378]"}`}
               >
