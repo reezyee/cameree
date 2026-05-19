@@ -69,7 +69,10 @@ export async function POST(req: Request) {
     return NextResponse.json(newStrip, { status: 201 });
   } catch (error) {
     console.error("DATABASE ERROR:", error);
-    return NextResponse.json({ error: "Failed to save template" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to save template" },
+      { status: 500 },
+    );
   }
 }
 
@@ -81,27 +84,32 @@ export async function PUT(req: Request) {
 
   try {
     const body = await req.json();
-    
-    // 💡 REORDER LOGIC FIX SEJATI: Menulis urutan permanen lewat sasis jarak tanggal statis
+
+    // 💡 SOLUSI DUNIA AKHIRAT REZ: Pake $transaction biar sekali angkut 20 data gak bakal crash/deadlock!
     if (body.reorder && Array.isArray(body.ids)) {
       const idArray: string[] = body.ids;
-      
-      // Menggunakan loop synchronous biar TiDB Cloud bener-bener antre nyimpen datanya
-      let index = 0;
-      for (const targetId of idArray) {
-        await prisma.stripTemplate.update({
+
+      // 1. Kita kumpulin dulu semua list antrean update ke dalam array teks query
+      const updates = idArray.map((targetId, index) => {
+        return prisma.stripTemplate.update({
           where: { id: targetId },
           data: {
-            // Kita kasih jarak 1 hari penuh (86400000ms) per urutan biar anti-balapan di server cloud
-            createdAt: new Date(1700000000000 + (index * 86400000))
-          }
+            thumbnailUrl: "", // Bersihkan sisa string index lama
+            // Set jarak tanggal linear statis yang rapi (berjarak 1 hari per item)
+            createdAt: new Date(1700000000000 + index * 86400000),
+          },
         });
-        index++;
-      }
-      
-      return NextResponse.json({ message: "Reorder locked perfectly in TiDB Cloud!" });
+      });
+
+      // 2. Tembak sekaligus dalam SATU gerbong kereta transaksi sejati ke TiDB Cloud!
+      await prisma.$transaction(updates);
+
+      return NextResponse.json({
+        message: "All reorders locked perfectly and permanently in TiDB Cloud!",
+      });
     }
 
+    // --- SISA LOGIC UPDATE EDIT TEMPLATE BIASA ---
     const { id, ...updateData } = body;
     const rawElements: InputElement[] = updateData.elements || [];
 
@@ -117,9 +125,9 @@ export async function PUT(req: Request) {
         elements: updateData.elements,
         photoPositions: rawElements
           .filter((el) => el.type === "photo")
-          .map((el, index: number) => ({
+          .map((el, idx: number) => ({
             id: el.id,
-            index,
+            index: idx,
             x: Number(el.x),
             y: Number(el.y),
             w: Number(el.w),
@@ -142,8 +150,11 @@ export async function PUT(req: Request) {
 
     return NextResponse.json(updatedStrip);
   } catch (error) {
-    console.error("PUT ERROR:", error);
-    return NextResponse.json({ error: "Failed to update template" }, { status: 500 });
+    console.error("TRANSACTION PUT ERROR:", error);
+    return NextResponse.json(
+      { error: "Failed to lock database transaction" },
+      { status: 500 },
+    );
   }
 }
 
@@ -151,16 +162,19 @@ export async function GET() {
   try {
     const dbData = await prisma.stripTemplate.findMany({
       where: {
-        isActive: true, 
+        isActive: true,
       },
       orderBy: {
-        createdAt: "asc" // 💡 FIX: Diurutkan secara linear dari tanggal terlama ke terbaru. Pasti kokoh!
-      }
+        createdAt: "asc", // 💡 FIX: Diurutkan secara linear dari tanggal terlama ke terbaru. Pasti kokoh!
+      },
     });
     return NextResponse.json(dbData);
   } catch (error) {
     console.error("GET ERROR:", error);
-    return NextResponse.json({ error: "Failed to load template" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load template" },
+      { status: 500 },
+    );
   }
 }
 
@@ -178,6 +192,9 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ message: "Template successfully deleted!" });
   } catch {
-    return NextResponse.json({ error: "Failed to delete template" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete template" },
+      { status: 500 },
+    );
   }
-} 
+}
