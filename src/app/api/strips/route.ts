@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// 💡 SUNTIKAN SAKTI: Memaksa Next.js & Vercel untuk selalu mengambil data segar langsung dari TiDB Cloud (Anti-Cache!)
+export const dynamic = "force-dynamic";
+
 interface InputElement {
   id: string;
   type: "photo" | "sticker";
@@ -79,13 +82,11 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     
-    // 💡 REORDER FIX TOTAL: Kunci mati urutan pake string padding indeks di kolom thumbnailUrl!
     if (body.reorder && Array.isArray(body.ids)) {
       const idArray: string[] = body.ids;
       
-      // Menggunakan padding string (00, 01, 02) biar urutan sorting alfabetis di database konsisten
       for (let i = 0; i < idArray.length; i++) {
-        const orderString = String(i).padStart(2, '0'); // Hasilnya: "00", "01", "02", dst.
+        const orderString = String(i).padStart(2, '0');
         await prisma.stripTemplate.update({
           where: { id: idArray[i] },
           data: {
@@ -149,7 +150,7 @@ export async function GET() {
         isActive: true, 
       },
       orderBy: {
-        thumbnailUrl: "asc" // 💡 FIX: Diurutkan berdasarkan angka string urutan lo. Anti-kocak!
+        thumbnailUrl: "asc"
       }
     });
     return NextResponse.json(dbData);
