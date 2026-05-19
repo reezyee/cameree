@@ -43,9 +43,8 @@ export default function TemplateManager() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fungsi fetch dibikin silent (tanpa loader layar penuh pas sinkronisasi background)
-  const fetchTemplates = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+  const fetchTemplates = async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/strips");
       const rawData: TemplateStructure[] = await res.json();
@@ -53,20 +52,14 @@ export default function TemplateManager() {
     } catch (err) {
       console.error("Failed to load templates!", err);
     } finally {
-      if (!isSilent) setLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Jalankan fetch pertama kali
+    // 💡 KEMBALIKAN KE JALUR BENER REZ: Cukup fetch sekali pas open page. 
+    // Hapus total setInterval jahanam biar gak ngganggu pas lo lagi nge-drag card!
     fetchTemplates();
-
-    // 💡 SUNTIKAN SAKTI REAL-TIME: Otomatis nge-fetch data segar dari database cloud tiap 3 detik
-    const interval = setInterval(() => {
-      fetchTemplates(true); // pass true biar gak memicu loader hitam yang ganggu layar
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const handleReorder = async (newOrder: TemplateStructure[]) => {
@@ -137,7 +130,7 @@ export default function TemplateManager() {
             </div>
           </div>
           <button
-            onClick={() => fetchTemplates(false)}
+            onClick={fetchTemplates}
             className="flex items-center gap-3 bg-zinc-900/80 border border-white/5 px-8 py-4 rounded-2xl text-[11px] font-black hover:bg-blue-600 hover:text-white transition-all duration-500 uppercase tracking-widest"
           >
             <RefreshCw size={16} /> Sync Library

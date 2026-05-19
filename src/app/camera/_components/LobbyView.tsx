@@ -46,7 +46,7 @@ export default function LobbyView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [windowSize, setWindowSize] = useState({ w: 0, h: 0 });
   
-  // 💡 INTERNAL STATE: Biar data polling background bisa langsung ngerubah urutan template di layar live user
+  // INTERNAL STATE: Biar data polling background bisa langsung ngerubah urutan template di layar live user
   const [liveTemplates, setLiveTemplates] = useState<LobbyTemplate[]>(initialTemplates);
 
   // Sync state internal jika ada perubahan props awal dari parent
@@ -62,7 +62,7 @@ export default function LobbyView({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 💡 SUNTIKAN REAL-TIME INTERNALS: Tiap 3 detik Lobby bakal ngecheck urutan terbaru ke database TiDB Cloud
+  // 💡 TETAP PERTAHANKAN: Interval polling khusus layar user biar otomatis sinkron sama setelan admin
   useEffect(() => {
     if (loading) return;
 
@@ -78,7 +78,8 @@ export default function LobbyView({
       }
     };
 
-    const interval = setInterval(silentFetch, 3000);
+    // Diubah ke 5 detik (5000ms) biar transisi antar-perubahan urutan lebih rileks dan smooth di HP
+    const interval = setInterval(silentFetch, 5000);
     return () => clearInterval(interval);
   }, [loading]);
 
