@@ -353,7 +353,8 @@ export default function LabView({
             <div className={`${isMobileView ? "w-[260px] h-20" : "w-[340px] h-30"} absolute top-2/12 md:top-2/11 bg-black/90 shadow-2xl -mt-8 z-10`} />
             <div className={`${isMobileView ? "w-[263px] h-6" : "w-[343px] h-10"} bg-[#100f0f] rounded-full shadow-2xl -mt-4 md:-mt-6 z-50`} />
 
-            <div className={`relative z-10 overflow-hidden ${isMobileView ? "h-[62vh] w-[360px]" : "h-[62vh] w-[460px]"} flex justify-center -mt-1 pointer-events-none`}>
+            {/* 💡 FIX UTAMA: pointer-events-none dibuang dari container canvas agar lapisannya gak memblokir area klik luar */}
+            <div className={`relative z-10 overflow-hidden ${isMobileView ? "h-[62vh] w-[360px]" : "h-[62vh] w-[460px]"} flex justify-center -mt-1`}>
               <motion.div
                 initial={{ y: -800 }}
                 animate={{ y: 0 }}
@@ -367,25 +368,24 @@ export default function LabView({
 
           <AnimatePresence>
             {shareUrl && (
-              // 💡 PERBAIKAN UTAMA: z-[100] ditambah pointer-events-auto mutlak agar klik sidik jari tembus di mobile!
+              // 💡 FIX UTAMA: Kunci z-[100] dan hilangkan class pembatas, link tag <a> terbuka mutlak di perangkat apa pun!
               <motion.div
                 initial={{ scale: 0, opacity: 0, x: 50 }}
                 animate={{ scale: 1, opacity: 1, x: 0 }}
-                className={`absolute ${isMobileView ? "left-[75%] -translate-x-1/2 top-2/17" : "left-[65%] top-2/9 -translate-y-1/2"} p-2 rotate-6 bg-white rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border-4 border-[#1a1a1c] z-[100] pointer-events-auto flex flex-col items-center`}
+                className={`absolute ${isMobileView ? "left-[75%] -translate-x-1/2 top-2/17" : "left-[65%] top-2/9 -translate-y-1/2"} p-2 rotate-6 bg-white rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border-4 border-[#1a1a1c] z-[100] flex flex-col items-center`}
               >
-                {/* 💡 ATURAN KLIK DINAMIS: Aktif jika mobileView, mati/unclickable jika dibuka di Laptop (murni buat scan) */}
                 <a 
                   href={shareUrl} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className={`transition-transform active:scale-95 block ${isMobileView ? "cursor-pointer pointer-events-auto" : "cursor-default pointer-events-none"}`}
+                  className="transition-transform active:scale-95 block cursor-pointer"
                 >
                   <div className="md:p-0.5 bg-zinc-50 rounded-2xl">
                     <QRCodeSVG value={shareUrl} size={isMobileView ? 75 : 110} includeMargin />
                   </div>
                 </a>
                 <p className="text-[7px] md:text-[9px] font-black text-[#1a1a1c] uppercase italic text-center tracking-tighter mt-1">
-                  {isMobileView ? "Click to Download" : "Scan to Download"}
+                  Click to Download
                 </p>
               </motion.div>
             )}
