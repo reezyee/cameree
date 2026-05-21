@@ -50,28 +50,28 @@ export default function CameraPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const unlockAudioIOS = () => {
-    if (!audioRef.current) return;
+  // 💡 JALAN NINJA UNLOCK IOS: Gunakan Web Audio Sinyal Hening Instan Tanpa Nyenggol File MP3
+  const unlockAudioContextIOS = () => {
     try {
-      audioRef.current.volume = 0; 
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const ctx = new AudioContextClass();
       
-      const p = audioRef.current.play();
-      if (p !== undefined) {
-        p.then(() => {
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            audioRef.current.volume = 1; 
-            console.log("🔓 GERBANG AUDIO IOS BERHASIL DIJEBOL SENYAP");
-          }
-        }).catch((e) => {
-          console.log("Audio play dipending:", e);
-          if (audioRef.current) audioRef.current.volume = 1;
-        });
-      }
+      // Kirim gelombang osilator bisu durasi mikro bawah gestur klik user
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(0, ctx.currentTime); 
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.start(0);
+      osc.stop(0.01);
+      ctx.resume();
+      
+      console.log("🔓 GERBANG WEB AUDIO API IOS RESMI TERBUKA SENYAP");
     } catch (e) {
-      console.error("Gagal unlock sasis audio HTML5:", e);
-      if (audioRef.current) audioRef.current.volume = 1;
+      console.error("Gagal menjebol security audio iOS:", e);
     }
   };
 
@@ -81,7 +81,6 @@ export default function CameraPage() {
       return;
     }
     try {
-      audioRef.current.volume = 1; // Pastikan volume penuh
       audioRef.current.currentTime = 0;
       audioRef.current.play();
       console.log("🔊 Memutar suara printer global di LAB...");
@@ -149,6 +148,8 @@ export default function CameraPage() {
 
   return (
     <div className="font-serif h-screen w-screen bg-[#d8d2c9] flex flex-col overflow-hidden relative">
+      
+      {/* Murni dipanggil via trigger global di LAB, aman dari bug render state */}
       <audio 
         ref={audioRef} 
         src="/sounds/print.mp3" 
@@ -183,7 +184,7 @@ export default function CameraPage() {
               selectedTemplate={selectedTemplate}
               setSelectedTemplate={setSelectedTemplate}
               onStart={() => {
-                unlockAudioIOS();
+                unlockAudioContextIOS(); // 🔓 Aktivasi ijin audio murni senyap tanpa pemicu file media
                 setStage("SHOOTING");
               }}
               isMobileView={isMobileView}
