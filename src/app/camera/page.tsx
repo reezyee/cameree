@@ -50,10 +50,17 @@ export default function CameraPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 💡 JALAN NINJA UNLOCK IOS: Gunakan Web Audio Sinyal Hening Instan Tanpa Nyenggol File MP3
+  // 💡 DEKLARASI UNLOCK AUDIO YANG DIJAMIN LOLOS TYPESCRIPT & SAFARI production BUILD
   const unlockAudioContextIOS = () => {
+    if (typeof window === "undefined") return;
+    if (!audioRef.current) return;
+
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      // TypeScript aman membaca webkitAudioContext dari interface global window tanpa casting 'any'
+      const AudioContextClass =
+        window.AudioContext || 
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
       if (!AudioContextClass) return;
 
       const ctx = new AudioContextClass();
