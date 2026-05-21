@@ -41,18 +41,20 @@ export default function DownloadPage({
   };
 
   return (
-    <div className="min-h-screen bg-[#d8d2c9] flex flex-col font-serif items-center justify-center p-6 relative select-none">
+    /* 💡 FIX UTAMA: select-none dibuang dari root div agar interaksi long-press bawaan HP aktif kembali global */
+    <div className="min-h-screen bg-[#d8d2c9] flex flex-col font-serif items-center justify-center p-6 relative">
       <div className="max-w-[380px] w-full bg-white rounded-[3rem] p-5 shadow-2xl border-4 border-[#153378] text-center relative z-10">
         
         {/* PREVIEW GIF AREA */}
-        <div className="mb-4 rounded-3xl overflow-hidden border-4 border-[#153378]/10 shadow-inner bg-zinc-50 relative aspect-square group">
+        {/* 💡 FIX TAMBAHAN: Pasang select-auto dan touch-contain secara eksplisit pada box gambar biar iOS peka sentuhan lama */}
+        <div className="mb-4 rounded-3xl overflow-hidden border-4 border-[#153378]/10 shadow-inner bg-zinc-50 relative aspect-square group select-auto touch-contain">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={gifUrl}
             alt="Recap Preview"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover pointer-events-auto select-auto" 
           />
-          <div className="absolute inset-0 bg-black/20 flex items-end justify-center p-4">
+          <div className="absolute inset-0 bg-black/20 flex items-end justify-center p-4 pointer-events-none">
             <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] bg-[#153378] px-3 py-1 rounded-full">
               Press & Hold to save GIF
             </span>
