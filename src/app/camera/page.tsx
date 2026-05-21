@@ -50,35 +50,29 @@ export default function CameraPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 💡 DEKLARASI UNLOCK AUDIO YANG DIJAMIN LOLOS TYPESCRIPT & SAFARI production BUILD
-  const unlockAudioContextIOS = () => {
-    if (typeof window === "undefined") return;
+  // 💡 JALAN NINJA UNLOCK SIFAT MEDIA: Mainkan audio base64 kosong murni (Silent WAV) pas gestur start diklik
+  const unlockAudioHTML5IOS = () => {
     if (!audioRef.current) return;
-
     try {
-      // TypeScript aman membaca webkitAudioContext dari interface global window tanpa casting 'any'
-      const AudioContextClass =
-        window.AudioContext || 
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      // 1. Set source ke bodi data keheningan tiruan murni
+      audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+      audioRef.current.load();
 
-      if (!AudioContextClass) return;
-
-      const ctx = new AudioContextClass();
-      
-      // Kirim gelombang osilator bisu durasi mikro bawah gestur klik user
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      gainNode.gain.setValueAtTime(0, ctx.currentTime); 
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      osc.start(0);
-      osc.stop(0.01);
-      ctx.resume();
-      
-      console.log("🔓 GERBANG WEB AUDIO API IOS RESMI TERBUKA SENYAP");
+      const p = audioRef.current.play();
+      if (p !== undefined) {
+        p.then(() => {
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            // 2. KUNCI SUKSES: Begitu gerbang disahkan Apple, kembalikan source ke file sound printer asli!
+            audioRef.current.src = "/sounds/print.mp3";
+            audioRef.current.load();
+            console.log("🔓 SASIS MEDIA HTML5 IOS BERHASIL DIJEBOL SENYAP LULUS SENSOR");
+          }
+        }).catch((e) => console.log("Audio unlock dipending browser:", e));
+      }
     } catch (e) {
-      console.error("Gagal menjebol security audio iOS:", e);
+      console.error("Gagal menjebol security sasis audio:", e);
     }
   };
 
@@ -88,6 +82,11 @@ export default function CameraPage() {
       return;
     }
     try {
+      // Pastikan src terarah dengan benar ke sound printer asli sebelum dimainkan
+      if (!audioRef.current.src.includes("/sounds/print.mp3")) {
+        audioRef.current.src = "/sounds/print.mp3";
+        audioRef.current.load();
+      }
       audioRef.current.currentTime = 0;
       audioRef.current.play();
       console.log("🔊 Memutar suara printer global di LAB...");
@@ -156,10 +155,9 @@ export default function CameraPage() {
   return (
     <div className="font-serif h-screen w-screen bg-[#d8d2c9] flex flex-col overflow-hidden relative">
       
-      {/* Murni dipanggil via trigger global di LAB, aman dari bug render state */}
+      {/* Target element dikontrol dinamis via lifecycle method script */}
       <audio 
         ref={audioRef} 
-        src="/sounds/print.mp3" 
         preload="auto" 
         playsInline 
         className="hidden pointer-events-none"
@@ -191,7 +189,7 @@ export default function CameraPage() {
               selectedTemplate={selectedTemplate}
               setSelectedTemplate={setSelectedTemplate}
               onStart={() => {
-                unlockAudioContextIOS(); // 🔓 Aktivasi ijin audio murni senyap tanpa pemicu file media
+                unlockAudioHTML5IOS(); // 🔓 Tembak base64 kosong murni di bawah gestur user click
                 setStage("SHOOTING");
               }}
               isMobileView={isMobileView}
