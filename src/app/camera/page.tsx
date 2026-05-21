@@ -33,7 +33,6 @@ interface CameraTemplate {
   }>;
 }
 
-// 💡 DEKLARASI TYPE STRICT: Meluaskan interface Window bawaan agar terbebas dari 'any'
 declare global {
   interface Window {
     playPrintSoundGlobal?: () => void;
@@ -49,47 +48,37 @@ export default function CameraPage() {
   const [showRotateScreen, setShowRotateScreen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // 🔊 WEB AUDIO API CORE (Lolos Sensor Keamanan iPhone)
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioBufferRef = useRef<AudioBuffer | null>(null);
-  const audioUnlockedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const unlockAudio = async () => {
-    if (audioUnlockedRef.current) return;
-
+  const unlockAudioIOS = () => {
+    if (!audioRef.current) return;
     try {
-      const AudioContextClass =
-        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-
-      const ctx = new AudioContextClass();
-      await ctx.resume();
-
-      const res = await fetch("/sounds/print.mp3");
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = await ctx.decodeAudioData(arrayBuffer);
-
-      audioCtxRef.current = ctx;
-      audioBufferRef.current = buffer;
-      audioUnlockedRef.current = true;
-
-      console.log("🔓 AUDIO GLOBAL BERHASIL DIKUNCI MATI");
+      const p = audioRef.current.play();
+      if (p !== undefined) {
+        p.then(() => {
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            console.log("🔓 GERBANG AUDIO IOS BERHASIL DIJEBOL MUTLAK");
+          }
+        }).catch((e) => console.log("Audio play dipending:", e));
+      }
     } catch (e) {
-      console.error("Gagal mengaktifkan sasis audio context:", e);
+      console.error("Gagal unlock sasis audio HTML5:", e);
     }
   };
 
   const playPrintSound = () => {
-    if (!audioCtxRef.current || !audioBufferRef.current) {
-      console.log("🔈 Sasis audio belum siap");
+    if (!audioRef.current) {
+      console.log("🔈 Objek audio element belum siap");
       return;
     }
     try {
-      const source = audioCtxRef.current.createBufferSource();
-      source.buffer = audioBufferRef.current;
-      source.connect(audioCtxRef.current.destination);
-      source.start(0);
+      audioRef.current.currentTime = 0;
+      audioRef.current.play();
+      console.log("🔊 Memutar suara printer global di LAB...");
     } catch (e) {
-      console.error("Gagal memutar audio global:", e);
+      console.error("Gagal memutar audio di iOS:", e);
     }
   };
 
@@ -104,9 +93,14 @@ export default function CameraPage() {
     const fetchTemplates = async () => {
       try {
         const res = await fetch("/api/strips");
-        const data: CameraTemplate[] = await res.json();
-        setTemplates(data);
-        if (data.length > 0) setSelectedTemplate(data[0]);
+        const data = await res.json();
+        
+        const actualTemplates = Array.isArray(data) 
+          ? data 
+          : (data && Array.isArray(data.data) ? data.data : []);
+
+        setTemplates(actualTemplates);
+        if (actualTemplates.length > 0) setSelectedTemplate(actualTemplates[0]);
       } catch (err) {
         console.error("Gagal memuat template database:", err);
       } finally {
@@ -147,6 +141,14 @@ export default function CameraPage() {
 
   return (
     <div className="font-serif h-screen w-screen bg-[#d8d2c9] flex flex-col overflow-hidden relative">
+      <audio 
+        ref={audioRef} 
+        src="/sounds/print.mp3" 
+        preload="auto" 
+        playsInline 
+        className="hidden pointer-events-none"
+      />
+
       {/* Tombol Back */}
       <div className={`fixed z-[60] transition-all duration-300 ${isMobileView ? "top-3 left-3" : "top-8 left-12"}`}>
         <Link href="/" title="Back to Home">
@@ -172,8 +174,8 @@ export default function CameraPage() {
               loading={loading}
               selectedTemplate={selectedTemplate}
               setSelectedTemplate={setSelectedTemplate}
-              onStart={async () => {
-                await unlockAudio(); // 🔓 Membuka lisensi audio context sejak awal klik di Lobby!
+              onStart={() => {
+                unlockAudioIOS();
                 setStage("SHOOTING");
               }}
               isMobileView={isMobileView}

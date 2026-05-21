@@ -53,27 +53,28 @@ export default function LabView({
   const [isUploading, setIsUploading] = useState(false);
   const [isDone, setIsDone] = useState(false);
 
+  // 💡 SINKRONISASI CLASS PREVIEW SIDEBAR DENGAN HASIL AKHIR STRIPS
   const filters = [
     { id: "none", label: "Original", class: "" },
-    { id: "grayscale", label: "Deep Analog", class: "grayscale contrast-125 brightness-90" },
-    { id: "sepia", label: "Creamy Film", class: "sepia-[0.5] contrast-110 saturate-80" },
-    { id: "classic", label: "Classic B&W", class: "grayscale sepia-[0.2] contrast-150" },
+    { id: "sepia", label: "Creamy Film", class: "sepia-[0.25] contrast-90 brightness-[1.02] saturate-[0.75]" }, // FOTO 1
+    { id: "classic", label: "Classic B&W", class: "grayscale sepia-[0.18] contrast-[1.25] brightness-[0.98]" }, // FOTO 2 (Warm Tint)
+    { id: "darkbw", label: "Dark B&W", class: "grayscale contrast-[1.85] brightness-[0.72]" }, // FOTO 3
+    { id: "grayscale", label: "Deep Analog", class: "grayscale contrast-[1.45] brightness-[0.95]" }, // FOTO 4
     { id: "vivid", label: "Vivid Retro", class: "contrast-110 brightness-110 saturate-125" },
   ];
 
-  // 💡 AUTOMATIC AUDIO ENGINE: Memanggil fungsi berlisensi aman dari parent page secara instan otomatis!
   const triggerAutomaticPrintSound = useCallback(() => {
     if (window.playPrintSoundGlobal) {
       window.playPrintSoundGlobal();
-      console.log("🖨️ Global print sound executed perfectly without re-lock");
+      console.log("🖨️ Global print sound executed perfectly");
     }
   }, []);
 
   useEffect(() => {
     const autoStart = setTimeout(() => {
       setIsPrinting(true);
-      triggerAutomaticPrintSound(); // Langsung otomatis raung tanpa butuh gesture tambahan di screen baru!
-    }, 800);
+      triggerAutomaticPrintSound();
+    }, 500);
 
     const stopPrinting = setTimeout(() => {
       setIsPrinting(false);
@@ -91,7 +92,7 @@ export default function LabView({
     canvas.width = w;
   };
 
-  // 💡 FIX FILTER PIKSEL LIVE: Alternatif manipulasi data piksel karena oCtx.filter WebKit Safari rusak total
+  // 💡 MANIPULASI PIKSEL EVALUASI SIFAT WARNA DARI FOTO REFERENSI MUTLAK
   const applySafariFilter = (ctx: CanvasRenderingContext2D, w: number, h: number, filterType: string) => {
     if (filterType === "none") return;
     
@@ -103,23 +104,68 @@ export default function LabView({
       let g = data[i + 1];
       let b = data[i + 2];
 
-      if (filterType === "grayscale" || filterType === "classic") {
-        let v = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        const factor = filterType === "classic" ? 1.35 : 1.2;
-        v = factor * (v - 128) + 128;
-        r = g = b = Math.min(255, Math.max(0, v));
+      if (filterType === "sepia") {
+        // 🎞️ FOTO REFERENSI 1: Creamy Film (Cream Pas Semu Kuning Gading, Gak Lebay)
+        // Naikkan black point tipis biar dapet efek faded print look
+        r = r * 0.92 + 10;
+        g = g * 0.92 + 10;
+        b = b * 0.92 + 10;
 
-        if (filterType === "classic") {
-          r = Math.min(255, r + 15);
-          g = Math.min(255, g + 8);
-        }
-      } else if (filterType === "sepia") {
-        const tr = 0.393 * r + 0.769 * g + 0.189 * b;
-        const tg = 0.349 * r + 0.686 * g + 0.168 * b;
-        const tb = 0.272 * r + 0.534 * g + 0.131 * b;
-        r = Math.min(255, tr * 1.1);
-        g = Math.min(255, tg);
-        b = Math.min(255, tb * 0.9);
+        // Campuran matriks warna pastel hangat yang dikontrol ketat
+        const tr = 0.393 * r + 0.680 * g + 0.180 * b;
+        const tg = 0.349 * r + 0.620 * g + 0.160 * b;
+        const tb = 0.272 * r + 0.520 * g + 0.130 * b;
+        
+        // Buat tone krimnya tipis dan menyatu alami di highlights
+        r = tr * 1.02;
+        g = tg * 1.01;
+        b = tb * 0.90;
+
+        // Penyesuaian kontras akhir yang lembut
+        r = 0.90 * (r - 128) + 128;
+        g = 0.90 * (g - 128) + 128;
+        b = 0.90 * (b - 128) + 128;
+
+      } else if (filterType === "classic") {
+        // 🎞️ FOTO REFERENSI 2: Classic B&W (Ada Tint Cream Halus Sesuai Gambar Referensi)
+        // Langkah 1: Ubah ke hitam putih berdasar koefisien Luminance standar
+        let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        
+        // Langkah 2: Kasih dorongan kontras menengah biar tegas
+        const factor = 1.32;
+        gray = factor * (gray - 128) + 128;
+        
+        // Langkah 3: Suntikkan tint krim halus (Merah naik sedikit, Biru dikurangi tipis)
+        r = gray + 10;
+        g = gray + 6;
+        b = gray - 4;
+
+      } else if (filterType === "darkbw") {
+        // 🎞️ FOTO REFERENSI 3: Dark B&W (Low-Key, Crushed Shadows Hitam Pekat)
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Reduksi kecerahan midtones secara drastis
+        gray = gray * 0.74; 
+        
+        // Kontras ditarik tinggi agar bayangannya gelap hancur pekat
+        const factor = 1.95;
+        gray = factor * (gray - 105) + 105;
+        
+        r = g = b = gray;
+
+      } else if (filterType === "grayscale") {
+        // 🎞️ FOTO REFERENSI 4: Deep Analog (High-Contrast Monochrome, Gradasi Midtones Kaya)
+        let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        
+        // Turunkan kecerahan sedikit saja untuk kedalaman visual film lama
+        gray = gray * 0.94; 
+        
+        // Naikkan kontras secara signifikan
+        const factor = 1.55;
+        gray = factor * (gray - 128) + 128;
+        
+        r = g = b = gray;
+
       } else if (filterType === "vivid") {
         const factor = 1.15;
         r = factor * (r - 128) + 128;
@@ -127,14 +173,14 @@ export default function LabView({
         b = factor * (b - 128) + 128;
 
         const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
-        r = Math.min(255, Math.max(0, gray + 1.3 * (r - gray)));
-        g = Math.min(255, Math.max(0, gray + 1.3 * (g - gray)));
-        b = Math.min(255, Math.max(0, gray + 1.3 * (b - gray)));
+        r = gray + 1.3 * (r - gray);
+        g = gray + 1.3 * (g - gray);
+        b = gray + 1.3 * (b - gray);
       }
 
-      data[i] = r;
-      data[i + 1] = g;
-      data[i + 2] = b;
+      data[i] = Math.min(255, Math.max(0, r));
+      data[i + 1] = Math.min(255, Math.max(0, g));
+      data[i + 2] = Math.min(255, Math.max(0, b));
     }
 
     ctx.putImageData(imgData, 0, 0);
@@ -214,10 +260,8 @@ export default function LabView({
               }
 
               oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
-              
-              // Terapkan manipulasi filter piksel langsung di canvas bayangan
+              // 💡 AMUNISI STRIPS FIX: Memasukkan string filter aktif murni agar cetakan strips sinkron 100% sama dengan preview!
               applySafariFilter(oCtx, el.w, el.h, filter);
-
               ctx.drawImage(offscreenCanvas, el.x, el.y);
             }
           } else {
@@ -269,11 +313,13 @@ export default function LabView({
       await renderFinalCollage();
       const stripData = canvas.toDataURL("image/jpeg", 0.9);
 
+      // Sinkronisasi filter string untuk kompilasi GIF bergerak agar identik dengan canvas cetak
       let gifFilterString = "";
-      if (filter === "grayscale") gifFilterString = "grayscale(100%)";
-      else if (filter === "sepia") gifFilterString = "sepia(60%)";
-      else if (filter === "classic") gifFilterString = "grayscale(100%) sepia(20%)";
-      else if (filter === "vivid") gifFilterString = "contrast(115%)";
+      if (filter === "grayscale") gifFilterString = "grayscale(100%) contrast(155%) brightness(94%)"; 
+      else if (filter === "classic") gifFilterString = "grayscale(100%) sepia(20%) contrast(132%)"; 
+      else if (filter === "darkbw") gifFilterString = "grayscale(100%) contrast(195%) brightness(74%)"; 
+      else if (filter === "sepia") gifFilterString = "sepia(30%) contrast(90%) brightness(102%)"; 
+      else if (filter === "vivid") gifFilterString = "contrast(115%) saturate(125%)";
 
       gifshot.createGIF(
         {
@@ -286,9 +332,12 @@ export default function LabView({
             formData.append("file", file);
             formData.append("upload_preset", "strips");
             formData.append("public_id", `cameree/sessions/${sessionId}_${suf}`);
+            if (suf === "gif") {
+              formData.append("resource_type", "auto");
+            }
             return fetch(
               `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-              { method: "POST", body: formData },
+              { method: "POST", body: formData }
             );
           };
           await Promise.all([upload(stripData, "strip"), upload(obj.image, "gif")]);
@@ -315,7 +364,7 @@ export default function LabView({
           <div className={`relative flex flex-col items-center transition-all duration-700 ${isMobileView ? "scale-[0.89] -translate-x-6" : "scale-90 md:scale-100"}`}>
             <div className={`${isMobileView ? "w-[300px] h-18" : "w-[400px] h-28"} bg-[#222224] rounded-t-[4rem] z-40 shadow-2xl border-x-[15px] border-[#161618] relative flex flex-col items-center`}>
               <div className="mt-4 px-3 py-1 border border-white/5 rounded-full">
-                <p className="text-[4px] md:text-[6px] font-black text-white/30 uppercase tracking-[0.5em] italic leading-none">Caméree Printer</p>
+                <p className="text-[4px] md:text-[6px] font-black text-white/30 uppercase tracking-[0.3em] italic leading-none">Caméree Printer</p>
               </div>
 
               <div className="absolute top-[40%] left-10 flex items-center gap-2.5 bg-[#0f0f10] px-2 py-1.5 md:px-4 md:py-2 rounded-full border border-white/5">
@@ -347,10 +396,12 @@ export default function LabView({
                 animate={{ scale: 1, opacity: 1, x: 0 }}
                 className={`absolute ${isMobileView ? "left-[75%] -translate-x-1/2 top-2/17" : "left-[65%] top-2/9 -translate-y-1/2"} p-2 rotate-6 bg-white rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border-4 border-[#1a1a1c] z-[100] flex flex-col items-center`}
               >
-                <div className="md:p-0.5 bg-zinc-50 rounded-2xl">
-                  <QRCodeSVG value={shareUrl} size={isMobileView ? 75 : 110} includeMargin />
-                </div>
-                <p className="text-[7px] md:text-[9px] font-black text-[#1a1a1c] uppercase italic text-center tracking-tighter mt-1">Scan to Download</p>
+                <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="cursor-pointer active:scale-95 transition-transform block">
+                  <div className="md:p-0.5 bg-zinc-50 rounded-2xl">
+                    <QRCodeSVG value={shareUrl} size={isMobileView ? 75 : 110} includeMargin />
+                  </div>
+                </a>
+                <p className="text-[7px] md:text-[9px] font-black text-[#1a1a1c] uppercase italic text-center tracking-tighter mt-1">Scan / Click to Download</p>
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,4 +1,4 @@
-# Caméree v5.0.0-beta.1 🚀
+# Caméree v5.0.0-beta.2 🚀
 
 A modern photo booth with a vintage soul — combining real-time filters, retro aesthetics, and instant memories.
 
@@ -6,7 +6,7 @@ Caméree transforms your device into an elegant, intuitive photo booth experienc
 
 ---
 
-## 🌋 What's New in v5.0.0 Beta
+## 🌋 What's New in v5.0.0 Beta 
 
 Version 5.0.0 is a complete ground-up re-engineering of Caméree. We moved away from temporary client-side states into a fully database-driven, multi-stage Photobooth Platform.
 
@@ -60,7 +60,7 @@ Download your photo strips instantly as high-quality JPEGs or share them through
 
 ## ❤️ Credits
 
-Caméree v5.0.0-beta.1 is proudly crafted with soul by [Reezyee](https://reezyee.github.io).
+Caméree v5.0.0-beta.2 is proudly crafted with soul by [Reezyee](https://reezyee.github.io).
 
 ---
 
