@@ -53,18 +53,25 @@ export default function CameraPage() {
   const unlockAudioIOS = () => {
     if (!audioRef.current) return;
     try {
+      audioRef.current.volume = 0; 
+      
       const p = audioRef.current.play();
       if (p !== undefined) {
         p.then(() => {
           if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-            console.log("🔓 GERBANG AUDIO IOS BERHASIL DIJEBOL MUTLAK");
+            audioRef.current.volume = 1; 
+            console.log("🔓 GERBANG AUDIO IOS BERHASIL DIJEBOL SENYAP");
           }
-        }).catch((e) => console.log("Audio play dipending:", e));
+        }).catch((e) => {
+          console.log("Audio play dipending:", e);
+          if (audioRef.current) audioRef.current.volume = 1;
+        });
       }
     } catch (e) {
       console.error("Gagal unlock sasis audio HTML5:", e);
+      if (audioRef.current) audioRef.current.volume = 1;
     }
   };
 
@@ -74,6 +81,7 @@ export default function CameraPage() {
       return;
     }
     try {
+      audioRef.current.volume = 1; // Pastikan volume penuh
       audioRef.current.currentTime = 0;
       audioRef.current.play();
       console.log("🔊 Memutar suara printer global di LAB...");
