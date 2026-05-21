@@ -105,65 +105,43 @@ export default function LabView({
       let b = data[i + 2];
 
       if (filterType === "sepia") {
-        // 🎞️ FOTO REFERENSI 1: Creamy Film (Cream Pas Semu Kuning Gading, Gak Lebay)
-        // Naikkan black point tipis biar dapet efek faded print look
         r = r * 0.92 + 10;
         g = g * 0.92 + 10;
         b = b * 0.92 + 10;
 
-        // Campuran matriks warna pastel hangat yang dikontrol ketat
         const tr = 0.393 * r + 0.680 * g + 0.180 * b;
         const tg = 0.349 * r + 0.620 * g + 0.160 * b;
         const tb = 0.272 * r + 0.520 * g + 0.130 * b;
         
-        // Buat tone krimnya tipis dan menyatu alami di highlights
         r = tr * 1.02;
         g = tg * 1.01;
         b = tb * 0.90;
 
-        // Penyesuaian kontras akhir yang lembut
         r = 0.90 * (r - 128) + 128;
         g = 0.90 * (g - 128) + 128;
         b = 0.90 * (b - 128) + 128;
 
       } else if (filterType === "classic") {
-        // 🎞️ FOTO REFERENSI 2: Classic B&W (Ada Tint Cream Halus Sesuai Gambar Referensi)
-        // Langkah 1: Ubah ke hitam putih berdasar koefisien Luminance standar
         let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        
-        // Langkah 2: Kasih dorongan kontras menengah biar tegas
         const factor = 1.32;
         gray = factor * (gray - 128) + 128;
         
-        // Langkah 3: Suntikkan tint krim halus (Merah naik sedikit, Biru dikurangi tipis)
         r = gray + 10;
         g = gray + 6;
         b = gray - 4;
 
       } else if (filterType === "darkbw") {
-        // 🎞️ FOTO REFERENSI 3: Dark B&W (Low-Key, Crushed Shadows Hitam Pekat)
         let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        
-        // Reduksi kecerahan midtones secara drastis
         gray = gray * 0.74; 
-        
-        // Kontras ditarik tinggi agar bayangannya gelap hancur pekat
         const factor = 1.95;
         gray = factor * (gray - 105) + 105;
-        
         r = g = b = gray;
 
       } else if (filterType === "grayscale") {
-        // 🎞️ FOTO REFERENSI 4: Deep Analog (High-Contrast Monochrome, Gradasi Midtones Kaya)
         let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        
-        // Turunkan kecerahan sedikit saja untuk kedalaman visual film lama
         gray = gray * 0.94; 
-        
-        // Naikkan kontras secara signifikan
         const factor = 1.55;
         gray = factor * (gray - 128) + 128;
-        
         r = g = b = gray;
 
       } else if (filterType === "vivid") {
@@ -260,7 +238,6 @@ export default function LabView({
               }
 
               oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
-              // 💡 AMUNISI STRIPS FIX: Memasukkan string filter aktif murni agar cetakan strips sinkron 100% sama dengan preview!
               applySafariFilter(oCtx, el.w, el.h, filter);
               ctx.drawImage(offscreenCanvas, el.x, el.y);
             }
@@ -313,7 +290,6 @@ export default function LabView({
       await renderFinalCollage();
       const stripData = canvas.toDataURL("image/jpeg", 0.9);
 
-      // Sinkronisasi filter string untuk kompilasi GIF bergerak agar identik dengan canvas cetak
       let gifFilterString = "";
       if (filter === "grayscale") gifFilterString = "grayscale(100%) contrast(155%) brightness(94%)"; 
       else if (filter === "classic") gifFilterString = "grayscale(100%) sepia(20%) contrast(132%)"; 
@@ -391,17 +367,26 @@ export default function LabView({
 
           <AnimatePresence>
             {shareUrl && (
+              // 💡 PERBAIKAN UTAMA: z-[100] ditambah pointer-events-auto mutlak agar klik sidik jari tembus di mobile!
               <motion.div
                 initial={{ scale: 0, opacity: 0, x: 50 }}
                 animate={{ scale: 1, opacity: 1, x: 0 }}
-                className={`absolute ${isMobileView ? "left-[75%] -translate-x-1/2 top-2/17" : "left-[65%] top-2/9 -translate-y-1/2"} p-2 rotate-6 bg-white rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border-4 border-[#1a1a1c] z-[100] flex flex-col items-center`}
+                className={`absolute ${isMobileView ? "left-[75%] -translate-x-1/2 top-2/17" : "left-[65%] top-2/9 -translate-y-1/2"} p-2 rotate-6 bg-white rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border-4 border-[#1a1a1c] z-[100] pointer-events-auto flex flex-col items-center`}
               >
-                <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="cursor-pointer active:scale-95 transition-transform block">
+                {/* 💡 ATURAN KLIK DINAMIS: Aktif jika mobileView, mati/unclickable jika dibuka di Laptop (murni buat scan) */}
+                <a 
+                  href={shareUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className={`transition-transform active:scale-95 block ${isMobileView ? "cursor-pointer pointer-events-auto" : "cursor-default pointer-events-none"}`}
+                >
                   <div className="md:p-0.5 bg-zinc-50 rounded-2xl">
                     <QRCodeSVG value={shareUrl} size={isMobileView ? 75 : 110} includeMargin />
                   </div>
                 </a>
-                <p className="text-[7px] md:text-[9px] font-black text-[#1a1a1c] uppercase italic text-center tracking-tighter mt-1">Scan / Click to Download</p>
+                <p className="text-[7px] md:text-[9px] font-black text-[#1a1a1c] uppercase italic text-center tracking-tighter mt-1">
+                  {isMobileView ? "Click to Download" : "Scan to Download"}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
