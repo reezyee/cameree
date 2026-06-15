@@ -16,7 +16,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// NEW: Font premium untuk watermark Caméree
 const dancingScript = Dancing_Script({
   subsets: ["latin"],
   weight: "700",
@@ -33,7 +32,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Caméree - Photo Booth",
-  description: "Capture retro and modern photos with Caméree.",
+  description: "Turn your device into a photobooth! No apps, no fees, just pure fun with Camérée.",
   icons: {
     icon: "/images/logo-cameree.ico",
     shortcut: "/images/logo-cameree.ico",
@@ -49,7 +48,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Optional: preload font untuk performa lebih cepat */}
         <link
           rel="preload"
           href="/fonts/dancing-script-v24-latin-700.woff2"

@@ -144,7 +144,7 @@
 }
 
 .aesthetic-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5); /* Warna biru pas di-hover */
+  background: rgba(59, 130, 246, 0.5);
 }
 
 .gsap-reveal {

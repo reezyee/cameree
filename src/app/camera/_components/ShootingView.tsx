@@ -7,10 +7,11 @@ import {
   Camera,
   FlipHorizontal,
   Sun,
-  RefreshCcw,
-  Palette,
+  Undo2,
   X,
+  SwitchCamera,
   Image as ImageIcon,
+  Check,
 } from "lucide-react";
 
 interface ShootingTemplate {
@@ -35,7 +36,7 @@ interface ShootingTemplate {
 
 interface ShootingViewProps {
   template: ShootingTemplate | null;
-  onComplete: (images: string[]) => void;
+  onComplete: (images: string[], selectedFilter: string) => void;
   onCancel: () => void;
   isMobileView: boolean;
 }
@@ -44,26 +45,37 @@ export default function ShootingView({
   template,
   onComplete,
   onCancel,
-  isMobileView,
 }: ShootingViewProps) {
   const { videoRef, startCamera, stopCamera } = useCamera();
   const [count, setCount] = useState<number | null>(null);
   const [captured, setCaptured] = useState<string[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
   const [isShooting, setIsShooting] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
+  const [isFilterLocked, setIsFilterLocked] = useState(false);
 
   const [isMirrored, setIsMirrored] = useState(true);
   const [isRinglightOn, setIsRinglightOn] = useState(true);
-  const [ringlightColor, setRinglightColor] = useState("#ffdfba");
+  const [ringlightColor] = useState("#ffffff");
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+
+  const [activeFilter, setActiveFilter] = useState("none");
+  const filters = [
+    { id: "none", label: "Original", style: "" },
+    { id: "sepia", label: "Creamy Film", style: "sepia(25%) contrast(90%) brightness(102%) saturate(75%)" },
+    { id: "classic", label: "Classic B&W", style: "grayscale(100%) sepia(18%) contrast(125%) brightness(98%)" },
+    { id: "darkbw", label: "Dark B&W", style: "grayscale(100%) contrast(185%) brightness(72%)" },
+    { id: "grayscale", label: "Deep Analog", style: "grayscale(100%) contrast(145%) brightness(95%)" },
+    { id: "vivid", label: "Vivid Retro", style: "contrast(110%) brightness(110%) saturate(125%)" },
+    { id: "kodak-portra", label: "Kodak Portra", style: "sepia(10%) contrast(95%) brightness(105%) saturate(110%)" },
+    { id: "fuji-classic", label: "Fuji Classic", style: "contrast(90%) brightness(100%) saturate(90%) hue-rotate(5deg)" },
+    { id: "dusted-film", label: "Dusted Film", style: "contrast(80%) brightness(105%) saturate(70%) sepia(20%)" },
+  ];
 
   const tempImagesRef = useRef<string[]>([]);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const totalSteps = useMemo(
-    () => template?.photoPositions?.length || template?.totalShots || 0,
-    [template],
-  );
+  const totalSteps = useMemo(() => template?.photoPositions?.length || template?.totalShots || 0, [template]);
 
   useEffect(() => {
     let isMounted = true;
@@ -84,9 +96,7 @@ export default function ShootingView({
 
   const takeSnapshot = () => {
     if (!videoRef.current) return;
-    if (!offscreenCanvasRef.current) {
-      offscreenCanvasRef.current = document.createElement("canvas");
-    }
+    if (!offscreenCanvasRef.current) offscreenCanvasRef.current = document.createElement("canvas");
     const canvas = offscreenCanvasRef.current;
     const video = videoRef.current;
     canvas.width = video.videoWidth;
@@ -99,6 +109,8 @@ export default function ShootingView({
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
+      const activeFilterStyle = filters.find((f) => f.id === activeFilter)?.style || "none";
+      ctx.filter = activeFilterStyle;
       ctx.drawImage(video, 0, 0);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
       tempImagesRef.current.push(dataUrl);
@@ -107,158 +119,115 @@ export default function ShootingView({
     }
   };
 
-  const runShootingCycle = async () => {
-    if (totalSteps === 0 || isShooting) return;
+  const captureSingle = async () => {
+    if (isShooting) return;
+    setIsFilterLocked(true);
     setIsShooting(true);
-    tempImagesRef.current = [];
-    setCaptured([]);
-
-    for (let i = 0; i < totalSteps; i++) {
-      for (let s = 3; s > 0; s--) {
-        setCount(s);
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      setCount(null);
-      setShowFlash(true);
-      takeSnapshot();
-      setTimeout(() => setShowFlash(false), 150);
-      await new Promise((r) => setTimeout(r, 2000));
+    for (let s = 3; s > 0; s--) {
+      setCount(s);
+      await new Promise((r) => setTimeout(r, 1000));
     }
-    setTimeout(() => onComplete(tempImagesRef.current), 800);
+    setCount(null);
+    setShowFlash(true);
+    takeSnapshot();
+    setTimeout(() => setShowFlash(false), 150);
+    setIsShooting(false);
+    setCurrentStep((prev) => prev + 1);
+  };
+
+  const handleRetake = () => {
+    tempImagesRef.current.pop();
+    setCaptured((prev) => prev.slice(0, -1));
+    setCurrentStep((prev) => prev - 1);
+    if (currentStep - 1 === 0) setIsFilterLocked(false);
   };
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#d8d2c9] flex items-center justify-center p-2 md:p-6 overflow-hidden">
-      <div className="flex flex-row w-full h-full max-w-[1300px] max-h-[80vh] gap-3 md:gap-8 items-center justify-center">
-        {/* CAMERA SECTION */}
-        <div className="relative flex-1 h-full flex items-center justify-center">
+      <div className="flex flex-row w-full h-full max-w-[1400px] max-h-[85vh] items-center justify-center gap-4 md:gap-8">
+        
+        {/* FILM ROLL */}
+        <div className="flex flex-col bg-[#d8d2c9] border-t-8 border-t-[#153378] shadow-xl w-32 md:w-52 h-fit pt-2 pb-5 justify-center space-y-2 shrink-0 z-50">
+          <p className="text-[7px] md:text-[9px] font-black uppercase tracking-widest text-[#153378] mb-5 px-1">Select Film Roll</p>
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2" style={{ scrollbarWidth: "none" }}>
+            {filters.map((f) => (
+              <button
+                key={f.id}
+                disabled={isFilterLocked}
+                onClick={() => setActiveFilter(f.id)}
+                className={`w-full text-left p-2  text-[9px] font-black uppercase tracking-tighter transition-all flex items-center gap-2 ${
+                  activeFilter === f.id ? "border-l-4 border-[#153378] text-[#153378]" : "bg-[d8d2c9]/10 border-transparent text-[#153378]/40 hover:border-white"
+                } ${isFilterLocked ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className="w-4 h-4 rounded bg-zinc-400 overflow-hidden shrink-0" style={{ filter: f.style }} />
+                <span className="truncate">{f.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* CAMERA */}
+        <div className="relative flex-[1.5] h-full flex items-center justify-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-h-[90vh] aspect-video rounded-[2rem] md:rounded-[4rem] transition-all duration-700 shadow-2xl overflow-hidden"
-            style={{
-              padding: isRinglightOn ? (isMobileView ? "4vh" : "min(7vh, 120px)") : "0px", 
-              backgroundColor: isRinglightOn ? ringlightColor : "#1a1a1c",
-              boxShadow: isRinglightOn
-                ? `0 0 60px ${ringlightColor}44`
-                : "none",
-            }}
+            className="relative w-full max-h-[90vh] aspect-video rounded-4xl md:rounded-[4rem] shadow-2xl overflow-hidden"
+            style={{ padding: isRinglightOn ? "3vh" : "0px", backgroundColor: isRinglightOn ? ringlightColor : "#1a1a1c", boxShadow: isRinglightOn ? `0 0 40px ${ringlightColor}44` : "none" }}
           >
-            <div className="relative w-full h-full rounded-[1.5rem] md:rounded-[3rem] overflow-hidden bg-black shadow-inner">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-                style={{ transform: isMirrored ? "scaleX(-1)" : "scaleX(1)" }}
-              />
+            <div className="relative w-full h-full rounded-3xl md:rounded-[3rem] overflow-hidden bg-black">
+              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" 
+                     style={{ transform: isMirrored ? "scaleX(-1)" : "scaleX(1)", filter: filters.find((f) => f.id === activeFilter)?.style || "none" }} />
 
-              {/* FLOATING CONTROLS */}
               {!isShooting && (
-                <div className={`absolute top-1/2 -translate-y-1/2 flex flex-col bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl pointer-events-auto z-[60] ${isMobileView ? "right-2 p-1.5 gap-1.5" : "right-3 md:right-6 p-2 md:p-3 gap-2 md:gap-3"}`}>
-                  <button
-                    onClick={() => setIsMirrored(!isMirrored)}
-                    className={`p-2 md:p-3 flex justify-center rounded-full ${isMirrored ? "bg-white text-[#153378]" : "text-white"}`}
-                  >
-                    <FlipHorizontal size={isMobileView ? 14 : 18} />
-                  </button>
-                  <button
-                    onClick={() => setIsRinglightOn(!isRinglightOn)}
-                    className={`p-2 md:p-3 flex justify-center rounded-full ${isRinglightOn ? "bg-white text-[#153378]" : "text-white"}`}
-                  >
-                    <Sun size={isMobileView ? 14 : 18} />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setRinglightColor(
-                        ringlightColor === "#ffffff" ? "#ffdfba" : "#ffffff",
-                      )
-                    }
-                    className="p-2 md:p-3 flex justify-center text-white"
-                  >
-                    <Palette size={isMobileView ? 14 : 18} style={{ color: ringlightColor }} />
-                  </button>
-                  <button
-                    onClick={toggleCamera}
-                    className="p-2 md:p-3 flex justify-center text-white md:hidden"
-                  >
-                    <RefreshCcw size={isMobileView ? 14 : 18} />
-                  </button>
-                  <div className="h-[1px] w-4 bg-white/20 mx-auto" />
-                  <button
-                    onClick={runShootingCycle}
-                    className="p-3 md:p-4 rounded-full bg-white text-[#153378] shadow-xl active:scale-90 transition-all"
-                  >
-                    <Camera size={isMobileView ? 18 : 22} />
-                  </button>
+                <div className="absolute top-6 left-6 right-6 flex justify-between z-60">
+                    <div className="flex gap-2">
+                        <button onClick={toggleCamera} className="p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white"><SwitchCamera size={18} /></button>
+                        <button onClick={() => setIsMirrored(!isMirrored)} className="p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white"><FlipHorizontal size={18} /></button>
+                    </div>
+                    <button onClick={() => setIsRinglightOn(!isRinglightOn)} className="p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white"><Sun size={18} /></button>
                 </div>
               )}
 
-              {/* COUNTDOWN */}
+              {!isShooting && (
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4 z-60">
+                  {currentStep > 0 && <button onClick={handleRetake} className="p-4 bg-black/40 backdrop-blur rounded-full text-white"><Undo2 size={24} /></button>}
+                  
+                  {currentStep < totalSteps ? (
+                    <button onClick={captureSingle} className="p-5 bg-white/90  text-[#153378] rounded-full shadow-2xl hover:scale-105 transition-transform"><Camera size={32} /></button>
+                  ) : (
+                    <button onClick={() => onComplete(captured, activeFilter)} className="p-5 bg-[#153378] text-white rounded-full shadow-2xl"><Check size={32} /></button>
+                  )}
+                </div>
+              )}
+
               <AnimatePresence>
                 {count && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.5 }}
-                    className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none"
-                  >
-                    <span className="text-[15vh] md:text-[25vh] font-black italic text-white drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-                      {count}
-                    </span>
+                  <motion.div className="absolute inset-0 flex items-center justify-center z-50">
+                    <span className="text-[20vh] font-black italic text-white drop-shadow-2xl">{count}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {showFlash && (
-                <div className="absolute inset-0 bg-white z-[100]" />
-              )}
+              {showFlash && <div className="absolute inset-0 bg-white z-100" />}
             </div>
           </motion.div>
         </div>
 
-        {/* SIDEBAR PREVIEWS */}
-        <div className={`hidden sm:flex flex-col h-full gap-3 py-2 md:py-6 ${isMobileView ? "w-28" : "w-40 md:w-64 lg:w-80"}`}>
-          <div className="flex items-center gap-2 opacity-30 px-2 shrink-0">
-            <ImageIcon size={14} className="text-[#153378]" />
-            <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-[#153378]">
-              Previews
-            </p>
+        {/* PREVIEW */}
+        <div className="flex flex-col h-full gap-2 py-4 w-20 md:w-40 shrink-0">
+          <div className="flex items-center gap-2 opacity-30 px-1">
+            <ImageIcon size={12} className="text-[#153378]" />
+            <p className="text-[7px] font-black uppercase tracking-[0.2em] text-[#153378]">Previews</p>
           </div>
-
-          <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-1 md:grid-cols-2 gap-20 md:gap-2 p-1 content-start">
+          <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-1 gap-2 content-start">
             {[...Array(totalSteps)].map((_, i) => (
-              <div
-                key={i}
-                className="relative aspect-video bg-white/60 rounded-xl overflow-hidden border-2 shadow-sm shrink-0"
-                style={{ borderColor: captured[i] ? ringlightColor : "white" }}
-              >
-                {captured[i] ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={captured[i]}
-                    className="w-full h-full object-cover"
-                    alt=""
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#153378]/10 font-black text-xs md:text-lg">
-                    {i + 1}
-                  </div>
-                )}
+              <div key={i} className="relative aspect-video bg-white/60 rounded-xl overflow-hidden border-2 shadow-sm" style={{ borderColor: captured[i] ? ringlightColor : "white" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {captured[i] ? <img src={captured[i]} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-[#153378]/10 font-black text-xs">{i + 1}</div>}
               </div>
             ))}
           </div>
-          <button
-            onClick={onCancel}
-            disabled={isShooting}
-            className="flex items-center justify-center gap-2 w-full py-3 md:py-4 bg-white text-[#153378] rounded-full font-black uppercase text-[8px] md:text-[10px] tracking-widest shadow-xl shrink-0"
-          >
-            <X size={14} />{" "}
-            <span className="hidden md:inline text-nowrap">
-              Switch Template
-            </span>
-            <span className="md:hidden">Back</span>
+          <button onClick={onCancel} disabled={isShooting} className="flex items-center justify-center cursor-pointer gap-2 w-full py-3 bg-white text-[#153378] rounded-full font-black uppercase text-[8px] tracking-widest shadow-xl">
+            <X size={12} /> Cancel
           </button>
         </div>
       </div>

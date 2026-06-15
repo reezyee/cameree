@@ -41,13 +41,9 @@ export default function DownloadPage({
   };
 
   return (
-    /* 💡 FIX UTAMA: select-none dibuang dari root div agar interaksi long-press bawaan HP aktif kembali global */
     <div className="min-h-screen bg-[#d8d2c9] flex flex-col font-serif items-center justify-center p-6 relative">
-      <div className="max-w-[380px] w-full bg-white rounded-[3rem] p-5 shadow-2xl border-4 border-[#153378] text-center relative z-10">
-        
-        {/* PREVIEW GIF AREA */}
-        {/* 💡 FIX TAMBAHAN: Pasang select-auto dan touch-contain secara eksplisit pada box gambar biar iOS peka sentuhan lama */}
-        <div className="mb-4 rounded-3xl overflow-hidden border-4 border-[#153378]/10 shadow-inner bg-zinc-50 relative aspect-square group select-auto touch-contain">
+      <div className="max-w-[380px] w-full p-5 shadow-[0_10px_20px_rgba(0,0,0,0.1)] bg-[#d8d2c9] border-t-8 border-t-[#153378] text-center relative z-10">
+        <div className="mb-4 overflow-hidden border-2 border-[#153378] shadow-inner bg-zinc-50 relative aspect-square group select-auto touch-contain">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={gifUrl}
@@ -62,11 +58,10 @@ export default function DownloadPage({
         </div>
 
         <div className="space-y-4">
-          {/* Button Strip */}
           <button
             onClick={() => downloadFile(stripUrl, `cameree strip ${id}.jpg`)}
             disabled={loading !== null}
-            className="w-full flex items-center justify-between bg-[#153378] p-4 rounded-3xl text-[#d8d2c9] active:scale-95 transition-all shadow-lg disabled:opacity-50 cursor-pointer border-none"
+            className="w-full flex items-center justify-between bg-[#153378] p-4 text-[#d8d2c9] active:scale-95 transition-all shadow-lg disabled:opacity-50 cursor-pointer border-none"
           >
             <div className="flex items-center gap-4 text-left">
               <ImageIcon size={24} />
@@ -84,11 +79,10 @@ export default function DownloadPage({
             )}
           </button>
 
-          {/* Button GIF */}
           <button
             onClick={() => downloadFile(gifUrl, `cameree recap ${id}.gif`)}
             disabled={loading !== null}
-            className="w-full flex items-center justify-between border-4 border-[#153378] bg-transparent p-3 rounded-3xl text-[#153378] active:scale-95 transition-all shadow-md disabled:opacity-50 cursor-pointer"
+            className="w-full flex items-center justify-between bg-transparent p-3 text-[#153378] active:scale-95 transition-all shadow-md disabled:opacity-50 cursor-pointer"
           >
             <div className="flex items-center gap-4 text-left">
               <Film size={24} />

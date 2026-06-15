@@ -39,24 +39,36 @@ export default function Home() {
         delay: 0.5,
         ease: "back.out(1.7)",
       })
-      .to(mainTitleRef1.current, {
-        autoAlpha: 1,
-        duration: 1,
-        y: 0,
-        ease: "power4.out",
-      }, "-=0.2")
-      .to([mainTitleRef.current, mainTitleRef2.current], {
-        autoAlpha: 1,
-        duration: 1.5,
-        y: 0,
-        ease: "back.inOut(1, 0.5)",
-      }, "-=0.8")
-      .to([contentRef.current, copyRight.current], {
-        autoAlpha: 1,
-        duration: 1.2,
-        y: 0,
-        ease: "power3.out",
-      }, "-=1");
+        .to(
+          mainTitleRef1.current,
+          {
+            autoAlpha: 1,
+            duration: 1,
+            y: 0,
+            ease: "power4.out",
+          },
+          "-=0.2",
+        )
+        .to(
+          [mainTitleRef.current, mainTitleRef2.current],
+          {
+            autoAlpha: 1,
+            duration: 1.5,
+            y: 0,
+            ease: "back.inOut(1, 0.5)",
+          },
+          "-=0.8",
+        )
+        .to(
+          [contentRef.current, copyRight.current],
+          {
+            autoAlpha: 1,
+            duration: 1.2,
+            y: 0,
+            ease: "power3.out",
+          },
+          "-=1",
+        );
     }, containerRef);
 
     return () => ctx.revert();
@@ -67,28 +79,44 @@ export default function Home() {
       ref={containerRef}
       className="min-h-screen bg-[#d8d2c9] font-serif text-[#153378] relative overflow-x-hidden flex items-center justify-center selection:bg-[#153378] selection:text-white"
     >
-      {/* --- BACKGROUND ELEMENTS --- */}
       <div className="fixed top-[-10%] left-[-10%] w-[60vw] h-[60vw] md:w-[40vw] md:h-[40vw] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-5%] right-[-5%] w-[50vw] h-[50vw] md:w-[30vw] md:h-[30vw] bg-orange-400/5 blur-[100px] rounded-full pointer-events-none" />
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://assets.codepen.io/605876/noise.png')] z-50" />
 
-      {/* --- STRIPS (Responsive Positioning) --- */}
       <motion.div
         initial={{ opacity: 0, y: 100, rotate: 12 }}
         animate={{ opacity: 1, y: 0, rotate: 8 }}
-        transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
-        className="fixed -bottom-32 -right-20 lg:-bottom-20 lg:-right-10 z-10 select-none pointer-events-none scale-50 sm:scale-75 lg:scale-100 origin-bottom-right"
+        transition={{
+          duration: 1.5,
+          delay: 1.5,
+          ease: "easeOut",
+        }}
+        className="fixed -bottom-10 -right-5 lg:right-20 z-10 select-none pointer-events-none scale-[0.6] lg:scale-[0.8] origin-bottom-right"
+        style={{
+          filter: "drop-shadow(-10px 10px 20px rgba(21, 51, 120, 0.1))",
+        }}
       >
-        <div className="w-[300px] h-[650px] bg-[#153378]/5 border-x-[12px] border-dashed border-[#153378]/10 shadow-2xl backdrop-blur-[2px]">
-          <div className="flex flex-col gap-6 p-6 opacity-30 grayscale hover:grayscale-0 transition-all duration-700">
+        <div className="relative w-[280px] h-[550px]">
+          {/* STRIP FILM */}
+          <div className="absolute -top-45 left-7 w-[200px] h-[500px] p-4">
             <Image
-              src="/images/tes.png"
-              alt="Film Strip Sample"
+              src="/images/strip.png"
               width={300}
-              height={700}
-              className="object-cover rounded-sm"
-              priority
+              height={400}
+              alt="strip"
+              className="w-full h-auto brightness-[0.85] contrast-[0.8] grayscale-[0.2] rounded-lg shadow-sm"
             />
+          </div>
+
+          <div className="absolute top-[180px] left-0 w-[250px] h-[350px] bg-[#d8d2c9] border-t border-[#b9b3aa]/30 shadow-[0_10px_25px_rgba(21,51,120,0.05)] rounded-t-xl transition-all duration-500 hover:shadow-[0_20px_40px_rgba(21,51,120,0.1)]">
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-[#d8d2c9] rounded-full" />
+
+            <div className="w-full h-full flex items-center justify-center pt-10">
+              <p className="-rotate-90 text-[#153378]/60 font-medium tracking-[0.3em] uppercase text-[11px]">
+                Best Version Of You
+              </p>
+            </div>
+            <div className="absolute inset-0 rounded-t-xl bg-linear-to-b from-transparent via-transparent to-[#d8d2c9] pointer-events-none" />
           </div>
         </div>
       </motion.div>
@@ -96,16 +124,16 @@ export default function Home() {
       {/* --- MAIN CONTENT --- */}
       <main className="relative flex items-center justify-center z-20 w-full max-w-7xl mx-auto px-6 py-12 md:py-24">
         <div className="grid grid-cols-1 items-center gap-12">
-          
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 md:space-y-10">
-            
-            {/* Header / Copyright */}
             <h2
               ref={copyRight}
               className="text-[10px] gsap-reveal md:text-xs font-medium tracking-[3px] md:tracking-[5px] text-[#153378]/50 italic"
             >
               © 2025 Caméree • Crafted with Soul by{" "}
-              <a href="#" className="underline decoration-1 underline-offset-4 hover:text-[#153378] transition-colors">
+              <a
+                href="#"
+                className="underline decoration-1 underline-offset-4 hover:text-[#153378] transition-colors"
+              >
                 Reezyee
               </a>
             </h2>
@@ -113,7 +141,9 @@ export default function Home() {
             {/* Main Title */}
             <div className="space-y-2">
               <h1 className="text-[16vw] leading-[0.85] sm:text-[14vw] md:text-[9rem] lg:text-[9rem] font-black tracking-tighter flex items-baseline justify-center lg:justify-start">
-                <span ref={mainTitleRef} className="gsap-reveal">Cam</span>
+                <span ref={mainTitleRef} className="gsap-reveal">
+                  Cam
+                </span>
                 <span className="relative flex flex-col items-center">
                   <span
                     ref={accentRef}
@@ -132,31 +162,32 @@ export default function Home() {
               </h1>
             </div>
 
-            {/* Paragraph & Buttons */}
-            <div ref={contentRef} className="space-y-8 md:space-y-10 gsap-reveal">
+            <div
+              ref={contentRef}
+              className="space-y-8 md:space-y-10 gsap-reveal"
+            >
               <p className="text-base sm:text-md md:text-lg lg:text-xl max-w-[280px] sm:max-w-md md:max-w-xl lg:max-w-4xl mx-auto lg:mx-0 leading-relaxed font-light opacity-70">
-                Experience the soul of vintage photobooth. Real-time filters,
-                classic film overlays, and instant digital strips designed for
-                your best memories.
+                Your moments, through a vintage lens. Create classic photo
+                strips instantly, wherever you are.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start items-center">
                 <Link href="/camera" className="w-full sm:w-auto">
-                  <Button className="group relative w-full sm:w-auto overflow-hidden px-8 py-5 md:px-12 md:py-7 text-lg md:text-xl font-bold cursor-pointer rounded-2xl bg-[#153378] text-[#d8d2c9] transition-all shadow-2xl hover:shadow-[#153378]/40 hover:scale-[1.05] active:scale-95">
+                  <Button className="group relative w-full sm:w-auto overflow-hidden px-8 py-5 md:px-12 md:py-7 text-lg md:text-xl font-bold cursor-pointer rounded-2xl bg-[#153378] text-[#d8d2c9] hover:bg-[#153378]/90 active:bg-[#153378]/80 transition-colors">
                     <span className="relative z-10 flex items-center justify-center">
-                      <Camera className="mr-3 size-5 md:size-6 group-hover:rotate-5 transition-transform" />
+                      <Camera className="mr-3 size-5 md:size-6 transition-transform" />
                       Snap Now
                     </span>
-                    <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform" />
                   </Button>
                 </Link>
-                
+
                 <div className="text-[10px] md:text-xs italic font-medium opacity-40 uppercase tracking-widest text-center sm:text-left sm:max-w-[180px] leading-tight">
-                  No account needed. <br className="hidden sm:block" /> Just smile.
+                  No account needed. <br className="hidden sm:block" /> Just
+                  smile.
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </main>
@@ -165,7 +196,7 @@ export default function Home() {
       <div className="fixed bottom-6 left-6 hidden md:block">
         <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.2em] uppercase opacity-30">
           <span>Digital Strip</span>
-          <div className="w-8 h-[1px] bg-[#153378]" />
+          <div className="w-8 h-1 bg-[#153378]" />
           <span>Analog Filter</span>
         </div>
       </div>

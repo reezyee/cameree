@@ -109,28 +109,19 @@ export default function ProStripsEditor() {
     [history, historyStep],
   );
 
-  const initPhotos = useCallback((shots: number) => {
-    setElements((prev) => {
-      const hasPhotos = prev.some((el) => el.type === "photo");
-      if (hasPhotos) return prev;
+  const undo = useCallback(() => {
+    if (historyStep > 0) {
+      setElements(JSON.parse(history[historyStep - 1]));
+      setHistoryStep(historyStep - 1);
+    }
+  }, [history, historyStep]);
 
-      const currentStickers = prev.filter((el) => el.type === "sticker");
-      const newPhotos: EditorElement[] = Array.from({
-        length: Math.min(shots, 6),
-      }).map((_, i) => ({
-        id: `photo-${i}`,
-        type: "photo",
-        x: 20,
-        y: i * 140 + 40,
-        w: 260,
-        h: 120,
-        rotate: 0,
-        radius: "0px",
-        customRadius: { tl: 0, tr: 0, bl: 0, br: 0 },
-      }));
-      return [...newPhotos, ...currentStickers];
-    });
-  }, []);
+  const redo = useCallback(() => {
+    if (historyStep < history.length - 1) {
+      setElements(JSON.parse(history[historyStep + 1]));
+      setHistoryStep(historyStep + 1);
+    }
+  }, [history, historyStep]);
 
   const duplicateElement = useCallback(
     (id: string) => {
@@ -151,6 +142,123 @@ export default function ProStripsEditor() {
     },
     [commitHistory],
   );
+
+  const uploadToCloudinary = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append(
+      "upload_preset",
+      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!,
+    );
+    formData.append("folder", "cameree/strips");
+    try {
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData },
+      );
+      if (!res.ok) throw new Error("Failed to upload image");
+      const data = await res.json();
+      return data.secure_url;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const initPhotos = useCallback(
+    (shots: number, saveToHistory: boolean = false) => {
+      setElements((prev) => {
+        const currentStickers = prev.filter((el) => el.type === "sticker");
+
+        const oldPhotosMap = new Map(
+          prev.filter((el) => el.type === "photo").map((p) => [p.id, p]),
+        );
+
+        const newPhotos: EditorElement[] = Array.from({
+          length: Math.min(shots, 6),
+        }).map((_, i) => {
+          const oldPhoto = oldPhotosMap.get(`photo-${i}`);
+          if (oldPhoto) return oldPhoto;
+
+          return {
+            id: `photo-${i}`,
+            type: "photo",
+            x: 20,
+            y: i * 140 + 40,
+            w: 260,
+            h: 120,
+            rotate: 0,
+            radius: "0px",
+            customRadius: { tl: 0, tr: 0, bl: 0, br: 0 },
+          };
+        });
+
+        const newState = [...newPhotos, ...currentStickers];
+        if (saveToHistory) commitHistory(newState);
+        return newState;
+      });
+    },
+    [commitHistory],
+  );
+
+  useEffect(() => {
+    initPhotos(totalShots, false);
+  }, [totalShots]);
+
+  const togglePhotoRadius = (id: string) => {
+    setElements((prev) => {
+      const newState = prev.map((el) => {
+        if (el.id === id && el.type === "photo") {
+          const isCurrentlyRounded = el.customRadius?.tl !== 0;
+
+          const newRadius = isCurrentlyRounded ? 0 : 150;
+          const newCustom = {
+            tl: newRadius,
+            tr: newRadius,
+            bl: newRadius,
+            br: newRadius,
+          };
+
+          return {
+            ...el,
+            customRadius: newCustom,
+            radius: `${newRadius}px ${newRadius}px ${newRadius}px ${newRadius}px`,
+          };
+        }
+        return el;
+      });
+      commitHistory(newState);
+      return newState;
+    });
+  };
+
+  const updateCustomRadius = (id: string, corner: string, value: number) => {
+    setElements((prev) => {
+      const newState = prev.map((el) => {
+        if (el.id === id) {
+          const currentCustom = el.customRadius || {
+            tl: 0,
+            tr: 0,
+            bl: 0,
+            br: 0,
+          };
+          const newCustom = {
+            ...currentCustom,
+            [corner]: value,
+          };
+
+          return {
+            ...el,
+            customRadius: newCustom,
+            radius: `${newCustom.tl}px ${newCustom.tr}px ${newCustom.br}px ${newCustom.bl}px`,
+          };
+        }
+        return el;
+      });
+      commitHistory(newState);
+      return newState;
+    });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -198,20 +306,6 @@ export default function ProStripsEditor() {
     return () => container.removeEventListener("wheel", handleWheel);
   }, []);
 
-  const undo = useCallback(() => {
-    if (historyStep > 0) {
-      setElements(JSON.parse(history[historyStep - 1]));
-      setHistoryStep(historyStep - 1);
-    }
-  }, [history, historyStep]);
-
-  const redo = useCallback(() => {
-    if (historyStep < history.length - 1) {
-      setElements(JSON.parse(history[historyStep + 1]));
-      setHistoryStep(historyStep + 1);
-    }
-  }, [history, historyStep]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === "z") {
@@ -237,32 +331,30 @@ export default function ProStripsEditor() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedId, undo, redo, duplicateElement, commitHistory]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (!params.get("id")) {
-      initPhotos(4);
-    }
-  }, [initPhotos]);
-
-  const uploadToCloudinary = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append(
-      "upload_preset",
-      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!,
-    );
-    formData.append("folder", "cameree/strips");
+  const addSticker = async (file: File) => {
+    setIsProcessing(true);
     try {
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData },
-      );
-      if (!res.ok) throw new Error("Failed to upload image");
-      const data = await res.json();
-      return data.secure_url;
+      const url = await uploadToCloudinary(file);
+      const newSticker: EditorElement = {
+        id: `st-${Date.now()}`,
+        type: "sticker",
+        src: url,
+        x: 50,
+        y: 50,
+        w: 120,
+        h: 120,
+        rotate: 0,
+      };
+      setElements((prev) => {
+        const newState = [...prev, newSticker];
+        commitHistory(newState);
+        return newState;
+      });
+      setSelectedId(newSticker.id);
     } catch (err) {
-      console.error(err);
-      throw err;
+      console.error("Failed to add sticker:", err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -297,33 +389,6 @@ export default function ProStripsEditor() {
       });
     } catch {
       alert("Failed to remove background!");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const addSticker = async (file: File) => {
-    setIsProcessing(true);
-    try {
-      const url = await uploadToCloudinary(file);
-      const newSticker: EditorElement = {
-        id: `st-${Date.now()}`,
-        type: "sticker",
-        src: url,
-        x: 50,
-        y: 50,
-        w: 120,
-        h: 120,
-        rotate: 0,
-      };
-      setElements((prev) => {
-        const newState = [...prev, newSticker];
-        commitHistory(newState);
-        return newState;
-      });
-      setSelectedId(newSticker.id);
-    } catch (err) {
-      console.error("Failed to add sticker:", err);
     } finally {
       setIsProcessing(false);
     }
@@ -436,55 +501,6 @@ export default function ProStripsEditor() {
     }
   };
 
-  const togglePhotoRadius = (id: string) => {
-    setElements((prev) => {
-      const newState = prev.map((el) => {
-        if (el.id === id) {
-          const isSquare = !el.customRadius || el.customRadius.tl === 0;
-          return isSquare
-            ? {
-                ...el,
-                customRadius: { tl: 150, tr: 150, bl: 150, br: 150 },
-                radius: "50%",
-                w: 280,
-                h: 180,
-              }
-            : {
-                ...el,
-                customRadius: { tl: 0, tr: 0, bl: 0, br: 0 },
-                radius: "0px",
-                w: 260,
-                h: 120,
-              };
-        }
-        return el;
-      });
-      commitHistory(newState);
-      return newState;
-    });
-  };
-
-  const updateCustomRadius = (id: string, corner: string, value: number) => {
-    setElements((prev) => {
-      const newState = prev.map((el) => {
-        if (el.id === id) {
-          const newCustom = {
-            ...(el.customRadius || { tl: 0, tr: 0, bl: 0, br: 0 }),
-            [corner]: value,
-          };
-          return {
-            ...el,
-            customRadius: newCustom,
-            radius: `${newCustom.tl}px ${newCustom.tr}px ${newCustom.br}px ${newCustom.bl}px`,
-          };
-        }
-        return el;
-      });
-      commitHistory(newState);
-      return newState;
-    });
-  };
-
   const cropSticker = () => {
     const target = elements.find((el) => el.id === selectedId);
     if (target && target.type === "sticker" && target.src) {
@@ -495,14 +511,14 @@ export default function ProStripsEditor() {
   return (
     <div className="flex h-screen w-full bg-[#0a0a0a] text-zinc-300 overflow-hidden font-sans">
       {isProcessing && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center">
+        <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center">
           <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
         </div>
       )}
 
       {/* SIDEBAR LEFT */}
       <div
-        className="w-64 flex-shrink-0 bg-[#0c0c0c] border-r border-white/[0.03] p-6 flex flex-col gap-8 overflow-y-auto no-scrollbar z-20"
+        className="w-64 shrink-0 bg-[#0c0c0c] border-r border-white/3 p-6 flex flex-col gap-8 overflow-y-auto no-scrollbar z-20"
         style={{ scrollbarWidth: "none" }}
       >
         <div className="flex items-center justify-between">
@@ -512,7 +528,7 @@ export default function ProStripsEditor() {
               alt="Caméree Studio Logo"
               width={140}
               height={40}
-              priority 
+              priority
               className="w-[140px] h-auto"
             />
           </div>
@@ -528,7 +544,7 @@ export default function ProStripsEditor() {
           </button>
         </div>
         <div className="space-y-6">
-          <div className="space-y-2.5 border-b border-white/[0.1] pb-4">
+          <div className="space-y-2.5 border-b border-white/3 pb-4">
             <label className="text-[9px] uppercase font-black text-zinc-600 tracking-[0.2em] block px-1">
               Template Name
             </label>
@@ -537,7 +553,7 @@ export default function ProStripsEditor() {
                 type="text"
                 value={themeName}
                 onChange={(e) => setThemeName(e.target.value)}
-                className="w-full bg-[#141414] border border-white/[0.05] p-3 rounded-md text-[11px] outline-none focus:border-blue-500/50 text-zinc-100 font-medium"
+                className="w-full bg-[#141414] border border-white/5 p-3 rounded-md text-[11px] outline-none focus:border-blue-500/50 text-zinc-100 font-medium"
               />
               <Edit3
                 size={10}
@@ -546,11 +562,11 @@ export default function ProStripsEditor() {
             </div>
           </div>
 
-          <div className="space-y-4 pt-2 pb-4 border-b border-white/[0.1]">
+          <div className="space-y-4 pt-2 pb-4 border-b border-white/3">
             <label className="text-[9px] uppercase font-black text-zinc-600 tracking-[0.2em] block px-1">
               Capture Config
             </label>
-            <div className="bg-[#111111] p-2 rounded-xl border border-white/[0.02] space-y-5">
+            <div className="bg-[#111111] p-2 rounded-xl border border-white/3 space-y-5">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">
                   Shots
@@ -565,7 +581,7 @@ export default function ProStripsEditor() {
                       initPhotos(n);
                     }
                   }}
-                  className="bg-zinc-900 w-16 p-2 rounded-md text-[11px] outline-none text-blue-500 font-black text-center border border-white/[0.05]"
+                  className="bg-zinc-900 w-16 p-2 rounded-md text-[11px] outline-none text-blue-500 font-black text-center border border-white/5"
                 />
               </div>
             </div>
@@ -576,7 +592,7 @@ export default function ProStripsEditor() {
               Canvas
             </label>
             <div className="grid grid-cols-1 gap-3 pt-2">
-              <div className="flex flex-1 gap-3 p-1 bg-[#111111] rounded-lg border border-white/[0.03]">
+              <div className="flex flex-1 gap-3 p-1 bg-[#111111] rounded-lg border border-white/3">
                 {[
                   { label: "Width", key: "w" as const },
                   { label: "Height", key: "h" as const },
@@ -592,12 +608,12 @@ export default function ProStripsEditor() {
                         handleCanvasSizeChange(dim.key, e.target.value)
                       }
                       onBlur={() => validateCanvasSize(dim.key)}
-                      className="bg-zinc-900 w-full p-2.5 rounded-md text-[10px] text-center outline-none text-zinc-200 font-bold border border-white/[0.05]"
+                      className="bg-zinc-900 w-full p-2.5 rounded-md text-[10px] text-center outline-none text-zinc-200 font-bold border border-white/5"
                     />
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3 p-2 border border-white/[0.03] rounded-lg overflow-hidden">
+              <div className="grid grid-cols-2 gap-3 p-2 border border-white/3 rounded-lg overflow-hidden">
                 {["color", "image"].map((mode) => (
                   <button
                     key={mode}
@@ -609,14 +625,14 @@ export default function ProStripsEditor() {
                 ))}
               </div>
             </div>
-            <div className="min-h-[44px]">
+            <div className="min-h-11">
               {bgMode === "color" ? (
-                <div className="relative h-11 w-full rounded-lg border border-white/[0.05] overflow-hidden group bg-[#141414]">
+                <div className="relative h-11 w-full rounded-lg border border-white/5 overflow-hidden group bg-[#141414]">
                   <input
                     type="color"
                     value={bgValue?.startsWith("#") ? bgValue : "#ffffff"}
                     onChange={(e) => setBgValue(e.target.value)}
-                    className="absolute inset-[-10px] w-[150%] h-[150%] cursor-pointer bg-transparent"
+                    className="absolute -inset-2.5 w-[150%] h-[150%] cursor-pointer bg-transparent"
                   />
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-3">
                     <span className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.2em]">
@@ -637,7 +653,7 @@ export default function ProStripsEditor() {
                 <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleBgDrop}
-                  className="relative group p-6 border border-dashed border-white/[0.05] rounded-xl text-[8px] font-black text-zinc-600 text-center hover:border-blue-500/50 hover:bg-blue-500/[0.02] transition-all cursor-pointer bg-zinc-900/20"
+                  className="relative group p-6 border border-dashed border-white/5 rounded-xl text-[8px] font-black text-zinc-600 text-center hover:border-blue-500/50 hover:bg-blue-500/2 transition-all cursor-pointer bg-zinc-900/20"
                 >
                   <input
                     type="file"
@@ -671,16 +687,16 @@ export default function ProStripsEditor() {
           </button>
         </div>
 
-        <div className="mt-auto pt-6 border-t border-white/[0.03] flex gap-2">
+        <div className="mt-auto pt-6 border-t border-white/3 flex gap-2">
           <button
             onClick={undo}
-            className="flex-1 py-3 bg-[#111111] hover:bg-zinc-800 border border-white/[0.03] rounded-lg flex justify-center text-zinc-500 hover:text-white transition-all"
+            className="flex-1 py-3 bg-[#111111] hover:bg-zinc-800 border border-white/3 rounded-lg flex justify-center text-zinc-500 hover:text-white transition-all"
           >
             <Undo2 size={14} />
           </button>
           <button
             onClick={redo}
-            className="flex-1 py-3 bg-[#111111] hover:bg-zinc-800 border border-white/[0.03] rounded-lg flex justify-center text-zinc-500 hover:text-white transition-all"
+            className="flex-1 py-3 bg-[#111111] hover:bg-zinc-800 border border-white/3 rounded-lg flex justify-center text-zinc-500 hover:text-white transition-all"
           >
             <Redo2 size={14} />
           </button>
@@ -787,7 +803,7 @@ export default function ProStripsEditor() {
                     {selectedId === el.id && (
                       <>
                         <div
-                          className="absolute inset-0 border-[2px] border-blue-500 pointer-events-none"
+                          className="absolute inset-0 border-2 border-blue-500 pointer-events-none"
                           style={{
                             borderRadius:
                               el.radius === "50%" ? "50%" : el.radius || "0px",
@@ -795,7 +811,7 @@ export default function ProStripsEditor() {
                         />
 
                         <div
-                          className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize z-[110] shadow-md pointer-events-auto"
+                          className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize z-110 shadow-md pointer-events-auto"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -830,7 +846,7 @@ export default function ProStripsEditor() {
                         />
 
                         <div
-                          className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full cursor-se-resize z-[110] shadow-xl pointer-events-auto"
+                          className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full cursor-se-resize z-110 shadow-xl pointer-events-auto"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -863,7 +879,7 @@ export default function ProStripsEditor() {
                         />
 
                         <div
-                          className="absolute -top-14 left-1/2 -translate-x-1/2 w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 z-[120] shadow-xl cursor-grab active:cursor-grabbing pointer-events-auto"
+                          className="absolute -top-14 left-1/2 -translate-x-1/2 w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500 z-120 shadow-xl cursor-grab active:cursor-grabbing pointer-events-auto"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -914,7 +930,7 @@ export default function ProStripsEditor() {
               initial={{ opacity: 0, y: 20, x: "-50%" }}
               animate={{ opacity: 1, y: 0, x: "-50%" }}
               exit={{ opacity: 0, y: 10, x: "-50%" }}
-              className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[5000] flex items-center gap-3 p-2.5 bg-[#1a1a1a]/80 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl"
+              className="fixed bottom-12 left-1/2 -translate-x-1/2 z-5000 flex items-center gap-3 p-2.5 bg-[#1a1a1a]/80 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl"
             >
               {elements.find((el) => el.id === selectedId)?.type === "photo" ? (
                 <div className="flex items-center gap-4 px-2">
@@ -1019,7 +1035,7 @@ export default function ProStripsEditor() {
 
       {/* SIDEBAR RIGHT - LAYERS */}
       <div
-        className="w-72 flex-shrink-0 bg-[#0c0c0c] border-l border-white/[0.03] p-6 flex flex-col gap-6 overflow-y-auto no-scrollbar z-20"
+        className="w-72 shrink-0 bg-[#0c0c0c] border-l border-white/3 p-6 flex flex-col gap-6 overflow-y-auto no-scrollbar z-20"
         style={{ scrollbarWidth: "none" }}
       >
         <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex justify-between px-1">
@@ -1109,9 +1125,18 @@ export default function ProStripsEditor() {
         </Reorder.Group>
 
         <div className="mt-auto space-y-3">
+          {editId && (
+            <button
+              onClick={() => (window.location.href = "/admin/templates")}
+              className="w-full bg-zinc-900 border border-white/5 py-4 rounded-2xl font-black text-zinc-400 text-[11px] hover:bg-zinc-800 transition-all uppercase"
+            >
+              Cancel Edit
+            </button>
+          )}
           <button
             onClick={async () => {
               setIsProcessing(true);
+              const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
               try {
                 const method = editId ? "PUT" : "POST";
                 const payload = {
@@ -1137,20 +1162,16 @@ export default function ProStripsEditor() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(payload),
                 });
-                if (!res.ok) throw new Error("Gagal simpan");
+                if (!res.ok) throw new Error("Error saving template");
                 setToast({
                   show: true,
                   message: "SUCCESS",
                   type: "success",
                 });
+                await delay(1500);
+                window.location.href = "/admin/templates";
               } catch {
                 setToast({ show: true, message: "FAILED", type: "error" });
-              } finally {
-                setIsProcessing(false);
-                setTimeout(
-                  () => setToast((p) => ({ ...p, show: false })),
-                  3000,
-                );
               }
             }}
             className="w-full bg-blue-600 py-4 rounded-2xl font-black text-white text-[11px] hover:bg-blue-500 shadow-2xl transition-all uppercase"
@@ -1167,7 +1188,7 @@ export default function ProStripsEditor() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-10"
+            className="fixed inset-0 z-10000 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-10"
           >
             <div className="relative w-full max-w-4xl max-h-[70vh] bg-[#0c0c0c] p-4 rounded-2xl overflow-auto flex justify-center items-center">
               <ReactCrop
@@ -1225,7 +1246,7 @@ export default function ProStripsEditor() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[10001] px-6 py-4 bg-[#141414] border border-white/10 rounded-2xl flex items-center gap-4"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-10001 px-6 py-4 bg-[#141414] border border-white/10 rounded-2xl flex items-center gap-4"
           >
             <div
               className={`w-2 h-2 rounded-full ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}

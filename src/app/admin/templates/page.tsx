@@ -64,7 +64,6 @@ export default function TemplateManager() {
     setTemplates(newOrder);
     const orderedIds = newOrder.map((t) => t.id);
 
-    // 💡 TRIGGER REAL-TIME SIARAN: Kirim data urutan terbaru ke komponen Lobby secara live!
     try {
       const channel = new BroadcastChannel("cameree_realtime_sync");
       channel.postMessage({ type: "REORDER_EVENT", newOrder });
@@ -107,7 +106,7 @@ export default function TemplateManager() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-black backdrop-blur-lg flex flex-col items-center justify-center">
+      <div className="fixed inset-0 z-9999 bg-black backdrop-blur-lg flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
       </div>
     );
@@ -168,7 +167,7 @@ export default function TemplateManager() {
       {/* CONFIRM DELETE MODAL */}
       <AnimatePresence>
         {deleteId && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-999 flex items-center justify-center p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -247,7 +246,7 @@ function TemplateCard({
         damping: 26,
         mass: 0.8,
       }}
-      className="flex flex-col gap-8 flex-shrink-0 group snap-center select-none relative cursor-grab active:cursor-grabbing"
+      className="flex flex-col gap-8 shrink-0 group snap-center select-none relative cursor-grab active:cursor-grabbing"
     >
       <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400">
         <MoveHorizontal size={10} /> Drag to Reorder
@@ -324,7 +323,7 @@ function TemplateCard({
           );
         })}
 
-        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-2 backdrop-blur-sm z-[100] pointer-events-auto">
+        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-2 backdrop-blur-sm z-100 pointer-events-auto">
           <Link
             href={`/admin/editor?id=${t.id}`}
             className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all duration-300"
@@ -344,7 +343,7 @@ function TemplateCard({
       </div>
 
       <div className="px-2 border-l-2 border-white group-hover:border-blue-600 transition-colors duration-500 text-center">
-        <h3 className="text-white font-black italic uppercase text-sm tracking-[0.1em] leading-none mb-2">
+        <h3 className="text-white font-black italic uppercase text-sm tracking-widest leading-none mb-2">
           {t.name}
         </h3>
         <div className="flex items-center justify-center gap-3">

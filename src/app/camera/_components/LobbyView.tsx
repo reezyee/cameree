@@ -117,13 +117,12 @@ export default function LobbyView({
               const ratio = DISPLAY_HEIGHT / t.canvasHeight;
               const displayWidth = t.canvasWidth * ratio;
               
-              // 💡 DEKLARASI AMAN: Ambil array elements murni milik template saat ini
               const currentElements = t.elements || [];
 
               return (
                 <motion.div
                   key={t.id}
-                  className={`flex flex-col items-center flex-shrink-0 snap-center ${
+                  className={`flex flex-col items-center shrink-0 snap-center ${
                     isMobileView ? "gap-4" : "gap-6"
                   }`}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -136,8 +135,8 @@ export default function LobbyView({
                       selectedTemplate?.id === t.id
                         ? `ring-[#153378] ring-offset-[#d8d2c9] z-20 scale-100 ${
                             isMobileView
-                              ? "ring-[1px] ring-offset-[2px]"
-                              : "ring-[2px] ring-offset-[4px]"
+                              ? "ring-t-1 ring-offset-2"
+                              : "ring-t-2 ring-offset-4"
                           }`
                         : "opacity-30 z-10 scale-95 hover:opacity-100"
                     }`}
@@ -220,15 +219,18 @@ export default function LobbyView({
       </div>
 
       {/* ACTION BUTTON */}
-      <div className={`fixed z-[9999] ${isMobileView ? "bottom-3 right-6" : "bottom-8 right-12"}`}>
+      <div className={`fixed z-9999 ${isMobileView ? "bottom-3 right-6" : "bottom-8 right-12"}`}>
         <Button
           onClick={onStart}
           disabled={!selectedTemplate}
-          className={`cursor-pointer flex items-center justify-center bg-[#153378] hover:bg-[#1a3f96] text-[#d8d2c9] rounded-full shadow-[0_20px_80px_rgba(21,51,120,0.4)] transition-all active:scale-90 disabled:opacity-10 border-none ${
-            isMobileView ? "h-10 w-14" : "h-12 w-20"
-          }`}
+          className={`group relative overflow-hidden cursor-pointer bg-[#153378] hover:bg-[#153378]/90 text-[#d8d2c9] rounded-full shadow-[0_20px_50px_rgba(21,51,120,0.4)] transition-all active:scale-95 italic border-none flex items-center justify-center ${
+              isMobileView ? "h-10 w-14" : "h-12 w-20"
+            }`}
         >
-          <ArrowRight className={`transition-transform duration-500 ${isMobileView ? "h-6 w-6" : "h-8 w-8"}`} />
+            <span className="relative z-10 flex items-center justify-center">
+              <ArrowRight size={isMobileView ? 20 : 30} />
+            </span>
+            <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform" />
         </Button>
       </div>
 

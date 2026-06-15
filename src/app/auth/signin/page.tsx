@@ -6,50 +6,37 @@ import Image from "next/image";
 
 export default function SignInPage() {
   return (
-    <div className="h-screen w-screen bg-[#0a0a0a] flex items-center justify-center p-6 relative overflow-hidden font-sans select-none">
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://assets.codepen.io/605876/noise.png')] z-10" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+    <div className="h-screen w-screen bg-[#080808] flex items-center justify-center p-6 relative overflow-hidden font-serif selection:bg-white selection:text-black">
+      <div className="absolute top-[-20%] right-[-10%] w-[40vw] h-[40vw] bg-orange-900/10 blur-[200px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[30vw] h-[30vw] bg-blue-900/5 blur-[200px] rounded-full pointer-events-none" />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.08] bg-[url('https://assets.codepen.io/605876/noise.png')]" />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 30 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 150, damping: 20 }}
-        className="max-w-md w-full bg-[#0e0e0e]/90 border flex flex-col justify-center items-center border-white/[0.04] p-12 rounded-[3.5rem] text-center shadow-[0_50px_100px_-20px_rgba(0,0,0,0.9)] backdrop-blur-2xl relative z-20"
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-[340px] w-full bg-[#0d0d0d] border border-white/8 p-12 text-center relative z-20 shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
       >
-        <Image
-          src="/images/camereestudio.png"
-          alt="Caméree Studio Logo"
-          width={240}
-          height={80}
-          priority
-          className="w-[240px] h-auto"
-        />
-        <div className="space-y-2 mb-12">
-          <div className="h-[2px] w-12 bg-blue-600 rounded-full mx-auto" />
-          <p className="text-zinc-600 text-[9px] font-black uppercase tracking-[0.4em] pt-2">
-            Restricted Access Only
-          </p>
+        <div className="mb-12">
+          <Image
+            src="/images/camereestudio.png"
+            alt="Logo"
+            width={200}
+            height={50}
+            className="mx-auto opacity-80 filter brightness-110"
+          />
         </div>
-
-        {/* Google Sign In Button */}
         <button
           onClick={() => signIn("google", { callbackUrl: "/admin/templates" })}
-          className="w-full bg-white text-black py-4.5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3.5 shadow-xl shadow-white/5 cursor-pointer"
+          className="w-full bg-[#1a1a1a] border border-white/10 text-zinc-300 py-4 font-medium text-[10px] uppercase tracking-[0.2em] 
+                     hover:bg-[#153378]  transition-all duration-500 ease-out active:scale-[0.99]
+                     shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://www.google.com/favicon.ico"
-            className="w-4 h-4 grayscale opacity-80 group-hover:grayscale-0"
-            alt="Google Icon"
-          />
-          Sign in with Google
+          Sign in
         </button>
 
-        <div className="mt-12 pt-6 border-t border-white/[0.03] space-y-1">
-          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">
-            Authorized Personnel Only
-          </p>
-        </div>
+        <p className="mt-10 text-[8px] text-zinc-700 font-medium italic">
+          Copyright © 2025. All rights reserved.
+        </p>
       </motion.div>
     </div>
   );

@@ -9,14 +9,19 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
+  pages: {
+    signIn: "/auth/signin",
+  },
   session: {
     strategy: "jwt",
     maxAge: 2 * 60 * 60,
-    updateAge: 15 * 60, 
-    },    
+    updateAge: 15 * 60,
+  },
   callbacks: {
     async signIn({ user }) {
-      if (user.email === process.env.ADMIN_EMAIL) {
+      const adminEmail = "cameree.io@gmail.com";
+
+      if (user.email === adminEmail) {
         return true;
       }
       return false;

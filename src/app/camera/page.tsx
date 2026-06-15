@@ -50,11 +50,9 @@ export default function CameraPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 💡 JALAN NINJA UNLOCK SIFAT MEDIA: Mainkan audio base64 kosong murni (Silent WAV) pas gestur start diklik
   const unlockAudioHTML5IOS = () => {
     if (!audioRef.current) return;
     try {
-      // 1. Set source ke bodi data keheningan tiruan murni
       audioRef.current.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
       audioRef.current.load();
 
@@ -64,34 +62,27 @@ export default function CameraPage() {
           if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-            // 2. KUNCI SUKSES: Begitu gerbang disahkan Apple, kembalikan source ke file sound printer asli!
             audioRef.current.src = "/sounds/print.mp3";
             audioRef.current.load();
-            console.log("🔓 SASIS MEDIA HTML5 IOS BERHASIL DIJEBOL SENYAP LULUS SENSOR");
           }
-        }).catch((e) => console.log("Audio unlock dipending browser:", e));
+        }).catch((e) => console.log("Audio unlock:", e));
       }
     } catch (e) {
-      console.error("Gagal menjebol security sasis audio:", e);
+      console.error("Failed access security audio:", e);
     }
   };
 
   const playPrintSound = () => {
-    if (!audioRef.current) {
-      console.log("🔈 Objek audio element belum siap");
-      return;
-    }
+    if (!audioRef.current) return;
     try {
-      // Pastikan src terarah dengan benar ke sound printer asli sebelum dimainkan
       if (!audioRef.current.src.includes("/sounds/print.mp3")) {
         audioRef.current.src = "/sounds/print.mp3";
         audioRef.current.load();
       }
       audioRef.current.currentTime = 0;
       audioRef.current.play();
-      console.log("🔊 Memutar suara printer global di LAB...");
     } catch (e) {
-      console.error("Gagal memutar audio di iOS:", e);
+      console.error("Failed play audio in iOS:", e);
     }
   };
 
@@ -107,15 +98,11 @@ export default function CameraPage() {
       try {
         const res = await fetch("/api/strips");
         const data = await res.json();
-        
-        const actualTemplates = Array.isArray(data) 
-          ? data 
-          : (data && Array.isArray(data.data) ? data.data : []);
-
+        const actualTemplates = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
         setTemplates(actualTemplates);
         if (actualTemplates.length > 0) setSelectedTemplate(actualTemplates[0]);
       } catch (err) {
-        console.error("Gagal memuat template database:", err);
+        console.error("Failed to load template database:", err);
       } finally {
         setLoading(false);
       }
@@ -141,36 +128,22 @@ export default function CameraPage() {
 
   if (showRotateScreen) {
     return (
-      <div className="fixed inset-0 bg-[#153378] flex items-center justify-center z-[100] text-white text-center p-8">
+      <div className="fixed inset-0 bg-[#153378] flex items-center justify-center z-100 text-white text-center p-8">
         <motion.div animate={{ rotate: -90 }} transition={{ repeat: Infinity, duration: 2 }}>
           <Smartphone size={80} />
         </motion.div>
-        <h2 className="absolute bottom-20 text-2xl font-bold italic uppercase">
-          please rotate your device
-        </h2>
+        <h2 className="absolute bottom-20 text-2xl font-bold italic uppercase">please rotate your device</h2>
       </div>
     );
   }
 
   return (
     <div className="font-serif h-screen w-screen bg-[#d8d2c9] flex flex-col overflow-hidden relative">
-      
-      {/* Target element dikontrol dinamis via lifecycle method script */}
-      <audio 
-        ref={audioRef} 
-        preload="auto" 
-        playsInline 
-        className="hidden pointer-events-none"
-      />
+      <audio ref={audioRef} preload="auto" playsInline className="hidden pointer-events-none" />
 
-      {/* Tombol Back */}
-      <div className={`fixed z-[60] transition-all duration-300 ${isMobileView ? "top-3 left-3" : "top-8 left-12"}`}>
+      <div className={`fixed z-60 transition-all duration-300 ${isMobileView ? "top-3 left-3" : "top-8 left-12"}`}>
         <Link href="/" title="Back to Home">
-          <Button 
-            className={`group relative overflow-hidden cursor-pointer bg-[#153378] hover:bg-[#153378]/90 text-[#d8d2c9] rounded-full shadow-[0_20px_50px_rgba(21,51,120,0.4)] transition-all active:scale-95 italic border-none flex items-center justify-center ${
-              isMobileView ? "h-10 w-14" : "h-12 w-20"
-            }`}
-          >
+          <Button className={`group relative overflow-hidden cursor-pointer bg-[#153378] hover:bg-[#153378]/90 text-[#d8d2c9] rounded-full shadow-[0_20px_50px_rgba(21,51,120,0.4)] transition-all active:scale-95 italic border-none flex items-center justify-center ${isMobileView ? "h-10 w-14" : "h-12 w-20"}`}>
             <span className="relative z-10 flex items-center justify-center">
               <ArrowLeft size={isMobileView ? 20 : 30} />
             </span>
@@ -189,7 +162,7 @@ export default function CameraPage() {
               selectedTemplate={selectedTemplate}
               setSelectedTemplate={setSelectedTemplate}
               onStart={() => {
-                unlockAudioHTML5IOS(); // 🔓 Tembak base64 kosong murni di bawah gestur user click
+                unlockAudioHTML5IOS();
                 setStage("SHOOTING");
               }}
               isMobileView={isMobileView}

@@ -5,9 +5,9 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
-    const isAdmin = token?.email === process.env.ADMIN_EMAIL;
+    const adminEmail = "cameree.io@gmail.com"; 
 
-    if (req.nextUrl.pathname.startsWith("/admin") && !isAdmin) {
+    if (token?.email !== adminEmail) {
       return NextResponse.redirect(new URL("/", req.url));
     }
   },

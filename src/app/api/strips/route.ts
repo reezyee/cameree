@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// 💡 SUNTIKAN SAKTI: Memaksa Next.js & Vercel untuk selalu mengambil data segar langsung dari TiDB Cloud (Anti-Cache!)
 export const dynamic = "force-dynamic";
 
 interface InputElement {
@@ -85,23 +84,19 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
 
-    // 💡 SOLUSI DUNIA AKHIRAT REZ: Pake $transaction biar sekali angkut 20 data gak bakal crash/deadlock!
     if (body.reorder && Array.isArray(body.ids)) {
       const idArray: string[] = body.ids;
 
-      // 1. Kita kumpulin dulu semua list antrean update ke dalam array teks query
       const updates = idArray.map((targetId, index) => {
         return prisma.stripTemplate.update({
           where: { id: targetId },
           data: {
-            thumbnailUrl: "", // Bersihkan sisa string index lama
-            // Set jarak tanggal linear statis yang rapi (berjarak 1 hari per item)
+            thumbnailUrl: "",
             createdAt: new Date(1700000000000 + index * 86400000),
           },
         });
       });
 
-      // 2. Tembak sekaligus dalam SATU gerbong kereta transaksi sejati ke TiDB Cloud!
       await prisma.$transaction(updates);
 
       return NextResponse.json({
@@ -109,7 +104,6 @@ export async function PUT(req: Request) {
       });
     }
 
-    // --- SISA LOGIC UPDATE EDIT TEMPLATE BIASA ---
     const { id, ...updateData } = body;
     const rawElements: InputElement[] = updateData.elements || [];
 
@@ -165,7 +159,7 @@ export async function GET() {
         isActive: true,
       },
       orderBy: {
-        createdAt: "asc", // 💡 FIX: Diurutkan secara linear dari tanggal terlama ke terbaru. Pasti kokoh!
+        createdAt: "asc",
       },
     });
     return NextResponse.json(dbData);
