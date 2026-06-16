@@ -150,6 +150,7 @@ export default function ShootingView({
         ctx.scale(-1, 1);
       }
 
+      ctx.filter = filter !== "none" ? filter : "none";
       ctx.drawImage(video, 0, 0);
 
       const activeFilterStyle =
@@ -335,7 +336,7 @@ export default function ShootingView({
                 style={{ borderColor: captured[i] ? ringlightColor : "white" }}
               >
                 {captured[i] ? (
-                   // eslint-disable-next-line @next/next/no-img-element
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={captured[i]}
                     className="w-full h-full object-cover"
