@@ -130,7 +130,6 @@ export default function ShootingView({
 
   const takeSnapshot = () => {
     if (!videoRef.current) return;
-
     const canvas = document.createElement("canvas");
     const video = videoRef.current;
     canvas.width = video.videoWidth;
@@ -143,7 +142,6 @@ export default function ShootingView({
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
-
       ctx.drawImage(video, 0, 0);
       ctx.restore();
 
@@ -290,7 +288,12 @@ export default function ShootingView({
                     </button>
                   ) : (
                     <button
-                      onClick={() => onComplete(captured, activeFilter)}
+                      onClick={() => {
+                        const style =
+                          filters.find((f) => f.id === activeFilter)?.style ||
+                          "";
+                        onComplete(captured, style);
+                      }}
                       className="p-5 bg-[#153378] text-white rounded-full shadow-2xl"
                     >
                       <Check size={32} />

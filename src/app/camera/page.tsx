@@ -47,7 +47,7 @@ export default function CameraPage() {
   const [collageImages, setCollageImages] = useState<string[]>([]);
   const [showRotateScreen, setShowRotateScreen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
-  const [ , setChosenFilter] = useState<string>("none");
+  const [chosenFilter , setChosenFilter] = useState<string>("none");
 
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -187,6 +187,7 @@ export default function CameraPage() {
               key="lab"
               images={collageImages}
               template={selectedTemplate}
+              filter={chosenFilter}
               onRetake={() => setStage("LOBBY")}
               isMobileView={isMobileView}
             />

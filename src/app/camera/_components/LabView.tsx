@@ -1,90 +1,59 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-
 import { motion, AnimatePresence } from "framer-motion";
-
 import { RefreshCw } from "lucide-react";
-
 import { QRCodeSVG } from "qrcode.react";
-
 import gifshot from "gifshot";
 
 interface LabTemplate {
   id: string;
-
   name: string;
-
   canvasWidth: number;
-
   canvasHeight: number;
-
   backgroundMode: "color" | "image";
-
   backgroundValue: string;
-
   elements: Array<{
     id: string;
-
     type: "photo" | "sticker";
-
     src?: string;
-
     x: number;
-
     y: number;
-
     w: number;
-
     h: number;
-
     rotate?: number;
-
     radius?: string;
   }>;
 }
 
 interface LabViewProps {
   images: string[];
-
   template: LabTemplate | null;
-
   onRetake: () => void;
-
   isMobileView: boolean;
+  filter: string;
 }
 
 interface GifshotResponse {
   error: boolean;
-
   errorCode: string;
-
   errorMsg: string;
-
   image: string;
 }
 
 export default function LabView({
   images,
-
   template,
-
   onRetake,
-
   isMobileView,
+  filter,
 }: LabViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   const [, setIsPrinting] = useState(false);
-
   const [shareUrl, setShareUrl] = useState<string | null>(null);
-
   const [isUploading, setIsUploading] = useState(false);
-
   const [isDone, setIsDone] = useState(false);
-
   const [printAnimationDone, setPrintAnimationDone] = useState(false);
-
   const triggerAutomaticPrintSound = useCallback(() => {
     if (window.playPrintSoundGlobal) {
       window.playPrintSoundGlobal();
@@ -96,63 +65,51 @@ export default function LabView({
   useEffect(() => {
     const autoStart = setTimeout(() => {
       setIsPrinting(true);
-
       triggerAutomaticPrintSound();
     }, 500);
 
     const stopPrinting = setTimeout(() => {
       setIsPrinting(false);
-
       setPrintAnimationDone(true);
     }, 6500);
 
     return () => {
       clearTimeout(autoStart);
-
       clearTimeout(stopPrinting);
     };
   }, [triggerAutomaticPrintSound]);
 
   const forceCanvasRefresh = (canvas: HTMLCanvasElement) => {
     const w = canvas.width;
-
     canvas.width = w + 1;
-
     canvas.width = w;
   };
 
   const renderFinalCollage = useCallback(async () => {
     const canvas = canvasRef.current;
-
     if (!canvas || !template) return;
-
     const ctx = canvas.getContext("2d");
-
     if (!ctx) return;
 
     canvas.width = template.canvasWidth;
-
     canvas.height = template.canvasHeight;
-
     forceCanvasRefresh(canvas);
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
+    if (filter && filter !== "none") {
+      ctx.filter = filter;
+    }
     if (template.backgroundMode === "color") {
       ctx.fillStyle = template.backgroundValue;
-
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
       const bgImg = new Image();
-
       bgImg.src = template.backgroundValue;
-
       bgImg.crossOrigin = "anonymous";
 
       await new Promise((r) => {
         bgImg.onload = () => {
           ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-
           r(null);
         };
 
@@ -164,126 +121,81 @@ export default function LabView({
 
     for (const el of allElements) {
       const img = new Image();
-
       img.src =
         el.type === "photo"
           ? images[allElements.filter((it) => it.type === "photo").indexOf(el)]
           : el.src || "";
 
       img.crossOrigin = "anonymous";
-
       await new Promise((resolve) => {
         const processImage = () => {
           ctx.save();
-
           const centerX = el.x + el.w / 2;
-
           const centerY = el.y + el.h / 2;
-
           ctx.translate(centerX, centerY);
-
           ctx.rotate(((el.rotate || 0) * Math.PI) / 180);
-
           ctx.translate(-centerX, -centerY);
-
           if (el.type === "photo") {
             ctx.beginPath();
-
             if (el.radius === "50%") {
               ctx.ellipse(
                 centerX,
-
                 centerY,
-
                 el.w / 2,
-
                 el.h / 2,
-
                 0,
-
                 0,
-
                 Math.PI * 2,
               );
             } else {
               const r = el.radius?.includes(" ")
                 ? el.radius.split(" ").map((v) => parseFloat(v) || 0)
                 : parseFloat(el.radius || "0");
-
               ctx.roundRect(el.x, el.y, el.w, el.h, r);
             }
-
             ctx.clip();
 
             const offscreenCanvas = document.createElement("canvas");
-
             offscreenCanvas.width = el.w;
-
             offscreenCanvas.height = el.h;
-
             const oCtx = offscreenCanvas.getContext("2d");
-
             if (oCtx) {
               const imgRatio = img.width / img.height;
-
               const targetRatio = el.w / el.h;
-
               let sW, sH, sX, sY;
-
               if (imgRatio > targetRatio) {
                 sH = img.height;
-
                 sW = img.height * targetRatio;
-
                 sX = (img.width - sW) / 2;
-
                 sY = 0;
               } else {
                 sW = img.width;
-
                 sH = img.width / targetRatio;
-
                 sX = 0;
-
                 sY = (img.height - sH) / 2;
               }
-
               oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
-
               ctx.drawImage(offscreenCanvas, el.x, el.y);
             }
           } else {
             ctx.filter = "none";
-
             const imgRatio = img.width / img.height;
-
             const targetRatio = el.w / el.h;
-
             let dW, dH, dX, dY;
-
             if (imgRatio > targetRatio) {
               dW = el.w;
-
               dH = el.w / imgRatio;
-
               dX = el.x;
-
               dY = el.y + (el.h - dH) / 2;
             } else {
               dH = el.h;
-
               dW = el.h * imgRatio;
-
               dX = el.x + (el.w - dW) / 2;
-
               dY = el.y;
             }
-
             ctx.drawImage(img, dX, dY, dW, dH);
           }
-
           ctx.restore();
-
           resolve(null);
         };
 
@@ -296,7 +208,8 @@ export default function LabView({
         }
       });
     }
-  }, [images, template]);
+    ctx.filter = "none";
+  }, [images, template, filter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
