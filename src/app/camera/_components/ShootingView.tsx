@@ -39,14 +39,12 @@ interface ShootingViewProps {
   onComplete: (images: string[], selectedFilter: string) => void;
   onCancel: () => void;
   isMobileView: boolean;
-  filter: string;
 }
 
 export default function ShootingView({
   template,
   onComplete,
   onCancel,
-  filter,
 }: ShootingViewProps) {
   const { videoRef, startCamera, stopCamera } = useCamera();
   const [count, setCount] = useState<number | null>(null);
@@ -107,7 +105,6 @@ export default function ShootingView({
   ];
 
   const tempImagesRef = useRef<string[]>([]);
-  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const totalSteps = useMemo(
     () => template?.photoPositions?.length || template?.totalShots || 0,
@@ -132,39 +129,37 @@ export default function ShootingView({
   };
 
   const takeSnapshot = () => {
-  if (!videoRef.current) return;
-  if (!offscreenCanvasRef.current) offscreenCanvasRef.current = document.createElement("canvas");
-  
-  const canvas = offscreenCanvasRef.current;
-  const video = videoRef.current;
-  
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!videoRef.current) return;
 
-  if (ctx) {
-    ctx.save();
-    
-    if (isMirrored) {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+    const canvas = document.createElement("canvas");
+    const video = videoRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (ctx) {
+      ctx.save();
+      if (isMirrored) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(video, 0, 0);
+      ctx.restore();
+
+      const activeFilterStyle = filters.find(
+        (f) => f.id === activeFilter,
+      )?.style;
+      if (activeFilter !== "none" && activeFilterStyle) {
+        ctx.filter = activeFilterStyle;
+        ctx.drawImage(canvas, 0, 0);
+      }
+
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      tempImagesRef.current.push(dataUrl);
+      setCaptured((prev) => [...prev, dataUrl]);
     }
-
-    ctx.drawImage(video, 0, 0);
-    ctx.restore(); // Balikin state sebelum filter biar gak tumpuk-tumpuk
-
-    if (activeFilter !== "none") {
-      const activeFilterStyle = filters.find((f) => f.id === activeFilter)?.style || "none";
-      ctx.filter = activeFilterStyle;
-      ctx.drawImage(canvas, 0, 0);
-      ctx.filter = "none"; // Reset
-    }
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    tempImagesRef.current.push(dataUrl);
-    setCaptured((prev) => [...prev, dataUrl]);
-  }
-};
+  };
 
   const captureSingle = async () => {
     if (isShooting) return;
@@ -338,7 +333,7 @@ export default function ShootingView({
                   <img
                     src={captured[i]}
                     className="w-full h-full object-cover"
-                    alt="Preview"
+                    alt=""
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[#153378]/10 font-black text-xs">
