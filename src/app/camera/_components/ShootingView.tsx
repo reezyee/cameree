@@ -132,41 +132,39 @@ export default function ShootingView({
   };
 
   const takeSnapshot = () => {
-    if (!videoRef.current) return;
-    if (!offscreenCanvasRef.current)
-      offscreenCanvasRef.current = document.createElement("canvas");
+  if (!videoRef.current) return;
+  if (!offscreenCanvasRef.current) offscreenCanvasRef.current = document.createElement("canvas");
+  
+  const canvas = offscreenCanvasRef.current;
+  const video = videoRef.current;
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-    const canvas = offscreenCanvasRef.current;
-    const video = videoRef.current;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true }); // Tambahkan ini untuk performa iOS
-
-    if (ctx) {
-      ctx.save();
-      if (isMirrored) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
-
-      ctx.filter = filter !== "none" ? filter : "none";
-      ctx.drawImage(video, 0, 0);
-
-      const activeFilterStyle =
-        filters.find((f) => f.id === activeFilter)?.style || "none";
-      if (activeFilter !== "none") {
-        ctx.filter = activeFilterStyle;
-        ctx.globalCompositeOperation = "source-in"; // atau 'copy'
-        ctx.drawImage(canvas, 0, 0);
-      }
-
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-      tempImagesRef.current.push(dataUrl);
-      setCaptured((prev) => [...prev, dataUrl]);
-      ctx.restore();
+  if (ctx) {
+    ctx.save();
+    
+    if (isMirrored) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
     }
-  };
+
+    ctx.drawImage(video, 0, 0);
+    ctx.restore(); // Balikin state sebelum filter biar gak tumpuk-tumpuk
+
+    if (activeFilter !== "none") {
+      const activeFilterStyle = filters.find((f) => f.id === activeFilter)?.style || "none";
+      ctx.filter = activeFilterStyle;
+      ctx.drawImage(canvas, 0, 0);
+      ctx.filter = "none"; // Reset
+    }
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    tempImagesRef.current.push(dataUrl);
+    setCaptured((prev) => [...prev, dataUrl]);
+  }
+};
 
   const captureSingle = async () => {
     if (isShooting) return;
