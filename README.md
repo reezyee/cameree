@@ -1,4 +1,4 @@
-# Caméree v5.0.0 🚀
+# Caméree v5.0.1 🚀
 
 A modern photo booth with a vintage soul — combining real-time filters, retro aesthetics, and instant memories.
 
@@ -6,9 +6,9 @@ Caméree transforms your device into an elegant, intuitive photo booth experienc
 
 ---
 
-## 🌋 What's New in v5.0.0
+## 🌋 What's New in v5.0.1
 
-Version 5.0.0 is a complete ground-up re-engineering of Caméree. We moved away from temporary client-side states into a fully database-driven, multi-stage Photobooth Platform.
+Version 5.0.1 is a complete ground-up re-engineering of Caméree. We moved away from temporary client-side states into a fully database-driven, multi-stage Photobooth Platform.
 
 ### 🗄️ 1. Full Database Integration (Prisma ORM)
 * **Dynamic Strip Management**: No more messy, hardcoded layout configs. All templates, canvas grids, and elements are now stored securely in the database.
@@ -60,7 +60,7 @@ Download your photo strips instantly as high-quality JPEGs or share them through
 
 ## ❤️ Credits
 
-Caméree v5.0.0 is proudly crafted with soul by [Reezyee](https://reezyee.github.io).
+Caméree v5.0.1 is proudly crafted with soul by [Reezyee](https://reezyee.github.io).
 
 ---
 

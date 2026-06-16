@@ -39,12 +39,14 @@ interface ShootingViewProps {
   onComplete: (images: string[], selectedFilter: string) => void;
   onCancel: () => void;
   isMobileView: boolean;
+  filter: string;
 }
 
 export default function ShootingView({
   template,
   onComplete,
   onCancel,
+
 }: ShootingViewProps) {
   const { videoRef, startCamera, stopCamera } = useCamera();
   const [count, setCount] = useState<number | null>(null);
