@@ -123,11 +123,11 @@ export default function CameraPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleCaptureComplete = (images: string[], selectedFilter: string) => {
-    setCollageImages(images);
-    setChosenFilter(selectedFilter);
-    setStage("LAB");
-  };
+const handleCaptureComplete = (images: string[], selectedFilterStyle: string) => {
+  setCollageImages(images);
+  setChosenFilter(selectedFilterStyle);
+  setStage("LAB");
+};
 
   if (showRotateScreen) {
     return (

@@ -130,8 +130,9 @@ export default function ShootingView({
 
   const takeSnapshot = () => {
     if (!videoRef.current) return;
-    const canvas = document.createElement("canvas");
+
     const video = videoRef.current;
+    const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -154,7 +155,6 @@ export default function ShootingView({
       }
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-      tempImagesRef.current.push(dataUrl);
       setCaptured((prev) => [...prev, dataUrl]);
     }
   };
