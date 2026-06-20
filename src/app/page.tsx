@@ -131,7 +131,7 @@ export default function Home() {
             >
               © 2025 Caméree • Crafted with Soul by{" "}
               <a
-                href="#"
+                href="https://reezyee.github.io"
                 className="underline decoration-1 underline-offset-4 hover:text-[#153378] transition-colors"
               >
                 Reezyee

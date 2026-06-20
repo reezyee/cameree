@@ -150,12 +150,21 @@ export default function ShootingView({
         (f) => f.id === activeFilter,
       )?.style;
       if (activeFilter !== "none" && activeFilterStyle) {
-        ctx.filter = activeFilterStyle;
-        ctx.drawImage(canvas, 0, 0);
+        
+        const filterCanvas = document.createElement("canvas");
+        filterCanvas.width = canvas.width;
+        filterCanvas.height = canvas.height;
+        const fCtx = filterCanvas.getContext("2d");
+        if (fCtx) {
+          fCtx.filter = activeFilterStyle;
+          fCtx.drawImage(canvas, 0, 0); 
+          const dataUrl = filterCanvas.toDataURL("image/jpeg", 0.9);
+          setCaptured((prev) => [...prev, dataUrl]);
+          return; 
+        }
       }
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-      setCaptured((prev) => [...prev, dataUrl]);
+      setCaptured((prev) => [...prev, canvas.toDataURL("image/jpeg", 0.9)]);
     }
   };
 
