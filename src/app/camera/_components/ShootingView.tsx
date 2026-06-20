@@ -128,7 +128,7 @@ export default function ShootingView({
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-const takeSnapshot = async () => {
+  const takeSnapshot = async () => {
     if (!videoRef.current) return;
 
     const video = videoRef.current;
@@ -138,30 +138,26 @@ const takeSnapshot = async () => {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
     if (ctx) {
+      const activeFilterStyle = filters.find(
+        (f) => f.id === activeFilter,
+      )?.style;
+      if (activeFilter !== "none" && activeFilterStyle) {
+        ctx.filter = activeFilterStyle;
+      }
+
       ctx.save();
       if (isMirrored) {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
 
-      const activeFilterStyle = filters.find((f) => f.id === activeFilter)?.style;
-      if (activeFilter !== "none" && activeFilterStyle) {
-        ctx.filter = activeFilterStyle;
-      }
-
       ctx.drawImage(video, 0, 0);
       ctx.restore();
 
-      const dataUrl = await new Promise<string>((resolve) => {
-        requestAnimationFrame(() => {
-          resolve(canvas.toDataURL("image/jpeg", 0.9));
-        });
-      });
-
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
       setCaptured((prev) => [...prev, dataUrl]);
     }
   };
-
   const captureSingle = async () => {
     if (isShooting) return;
     setIsFilterLocked(true);
@@ -251,20 +247,23 @@ const takeSnapshot = async () => {
                   <div className="flex gap-2">
                     <button
                       onClick={toggleCamera}
-                      className="p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white"
+                      disabled={isFilterLocked}
+                      className={`p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white ${isFilterLocked ? "opacity-30 cursor-not-allowed" : ""}`}
                     >
                       <SwitchCamera size={18} />
                     </button>
                     <button
                       onClick={() => setIsMirrored(!isMirrored)}
-                      className="p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white"
+                      disabled={isFilterLocked}
+                      className={`p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white ${isFilterLocked ? "opacity-30 cursor-not-allowed" : ""}`}
                     >
                       <FlipHorizontal size={18} />
                     </button>
                   </div>
                   <button
                     onClick={() => setIsRinglightOn(!isRinglightOn)}
-                    className="p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white"
+                    disabled={isFilterLocked}
+                    className={`p-3 bg-black/40 backdrop-blur cursor-pointer rounded-full text-white ${isFilterLocked ? "opacity-30 cursor-not-allowed" : ""}`}
                   >
                     <Sun size={18} />
                   </button>
@@ -337,7 +336,7 @@ const takeSnapshot = async () => {
                 {captured[i] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={captured[i]} 
+                    src={captured[i]}
                     className="w-full h-full object-cover"
                     alt=""
                   />
