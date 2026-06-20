@@ -41,6 +41,80 @@ interface GifshotResponse {
   image: string;
 }
 
+const applyFilterToImage = (imageData: ImageData, filterId: string) => {
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    switch (filterId) {
+      case "classic": {
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        data[i] = Math.min(255, gray * 1.15);
+        data[i + 1] = Math.min(255, gray * 1.08);
+        data[i + 2] = Math.min(255, gray * 0.98);
+        break;
+      }
+
+      case "darkbw": {
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        const v = Math.max(0, gray * 0.75);
+        data[i] = v;
+        data[i + 1] = v;
+        data[i + 2] = v;
+        break;
+      }
+
+      case "grayscale": {
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+        break;
+      }
+
+      case "sepia": {
+        data[i] = Math.min(255, r * 1.07 + 20);
+        data[i + 1] = Math.min(255, g * 0.95 + 10);
+        data[i + 2] = Math.min(255, b * 0.75);
+        break;
+      }
+
+      case "vivid": {
+        data[i] = Math.min(255, r * 1.12);
+        data[i + 1] = Math.min(255, g * 1.12);
+        data[i + 2] = Math.min(255, b * 1.12);
+        break;
+      }
+
+      case "kodak-portra": {
+        data[i] = Math.min(255, r * 1.05 + 8);
+        data[i + 1] = Math.min(255, g * 1.02 + 4);
+        data[i + 2] = Math.min(255, b * 0.92);
+        break;
+      }
+
+      case "fuji-classic": {
+        data[i] = r * 0.95;
+        data[i + 1] = g * 1.02;
+        data[i + 2] = Math.min(255, b * 1.08);
+        break;
+      }
+
+      case "dusted-film": {
+        data[i] = r * 0.92 + 12;
+        data[i + 1] = g * 0.92 + 12;
+        data[i + 2] = b * 0.88 + 12;
+        break;
+      }
+    }
+  }
+
+  return imageData;
+};
+
 export default function LabView({
   images,
   template,
@@ -54,49 +128,49 @@ export default function LabView({
   const [isUploading, setIsUploading] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const [printAnimationDone, setPrintAnimationDone] = useState(false);
-  const filters = [
-    { id: "none", label: "Original", style: "" },
-    {
-      id: "sepia",
-      label: "Creamy Film",
-      style: "sepia(25%) contrast(90%) brightness(102%) saturate(75%)",
-    },
-    {
-      id: "classic",
-      label: "Classic B&W",
-      style: "grayscale(100%) sepia(18%) contrast(125%) brightness(98%)",
-    },
-    {
-      id: "darkbw",
-      label: "Dark B&W",
-      style: "grayscale(100%) contrast(185%) brightness(72%)",
-    },
-    {
-      id: "grayscale",
-      label: "Deep Analog",
-      style: "grayscale(100%) contrast(145%) brightness(95%)",
-    },
-    {
-      id: "vivid",
-      label: "Vivid Retro",
-      style: "contrast(110%) brightness(110%) saturate(125%)",
-    },
-    {
-      id: "kodak-portra",
-      label: "Kodak Portra",
-      style: "sepia(10%) contrast(95%) brightness(105%) saturate(110%)",
-    },
-    {
-      id: "fuji-classic",
-      label: "Fuji Classic",
-      style: "contrast(90%) brightness(100%) saturate(90%) hue-rotate(5deg)",
-    },
-    {
-      id: "dusted-film",
-      label: "Dusted Film",
-      style: "contrast(80%) brightness(105%) saturate(70%) sepia(20%)",
-    },
-  ];
+  // const filters = [
+  //   { id: "none", label: "Original", style: "" },
+  //   {
+  //     id: "sepia",
+  //     label: "Creamy Film",
+  //     style: "sepia(25%) contrast(90%) brightness(102%) saturate(75%)",
+  //   },
+  //   {
+  //     id: "classic",
+  //     label: "Classic B&W",
+  //     style: "grayscale(100%) sepia(18%) contrast(125%) brightness(98%)",
+  //   },
+  //   {
+  //     id: "darkbw",
+  //     label: "Dark B&W",
+  //     style: "grayscale(100%) contrast(185%) brightness(72%)",
+  //   },
+  //   {
+  //     id: "grayscale",
+  //     label: "Deep Analog",
+  //     style: "grayscale(100%) contrast(145%) brightness(95%)",
+  //   },
+  //   {
+  //     id: "vivid",
+  //     label: "Vivid Retro",
+  //     style: "contrast(110%) brightness(110%) saturate(125%)",
+  //   },
+  //   {
+  //     id: "kodak-portra",
+  //     label: "Kodak Portra",
+  //     style: "sepia(10%) contrast(95%) brightness(105%) saturate(110%)",
+  //   },
+  //   {
+  //     id: "fuji-classic",
+  //     label: "Fuji Classic",
+  //     style: "contrast(90%) brightness(100%) saturate(90%) hue-rotate(5deg)",
+  //   },
+  //   {
+  //     id: "dusted-film",
+  //     label: "Dusted Film",
+  //     style: "contrast(80%) brightness(105%) saturate(70%) sepia(20%)",
+  //   },
+  // ];
 
   const triggerAutomaticPrintSound = useCallback(() => {
     if (window.playPrintSoundGlobal) {
@@ -171,11 +245,6 @@ export default function LabView({
         const processImage = () => {
           ctx.save();
 
-          const activeFilterStyle =
-            filters.find((f) => f.id === filter)?.style || "none";
-
-          ctx.filter = activeFilterStyle;
-
           const centerX = el.x + el.w / 2;
           const centerY = el.y + el.h / 2;
           ctx.translate(centerX, centerY);
@@ -217,10 +286,57 @@ export default function LabView({
               sY = (img.height - sH) / 2;
             }
 
-            ctx.drawImage(img, sX, sY, sW, sH, el.x, el.y, el.w, el.h);
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+
+            const tempCtx = tempCanvas.getContext("2d");
+
+            if (tempCtx) {
+              tempCtx.drawImage(img, 0, 0);
+
+              if (filter !== "none") {
+                const imageData = tempCtx.getImageData(
+                  0,
+                  0,
+                  tempCanvas.width,
+                  tempCanvas.height,
+                );
+
+                tempCtx.putImageData(
+                  applyFilterToImage(imageData, filter),
+                  0,
+                  0,
+                );
+              }
+
+              ctx.drawImage(tempCanvas, sX, sY, sW, sH, el.x, el.y, el.w, el.h);
+            }
           } else {
             // Draw Sticker
-            ctx.drawImage(img, el.x, el.y, el.w, el.h);
+            const imgRatio = img.width / img.height;
+            const boxRatio = el.w / el.h;
+
+            let drawW;
+            let drawH;
+            let drawX;
+            let drawY;
+
+            if (imgRatio > boxRatio) {
+              drawW = el.w;
+              drawH = el.w / imgRatio;
+
+              drawX = el.x;
+              drawY = el.y + (el.h - drawH) / 2;
+            } else {
+              drawH = el.h;
+              drawW = el.h * imgRatio;
+
+              drawX = el.x + (el.w - drawW) / 2;
+              drawY = el.y;
+            }
+
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
           }
 
           ctx.restore();
