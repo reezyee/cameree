@@ -88,17 +88,16 @@ export default function LabView({
   const renderFinalCollage = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas || !template) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
+    // Reset Canvas
     canvas.width = template.canvasWidth;
     canvas.height = template.canvasHeight;
     forceCanvasRefresh(canvas);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    if (filter && filter !== "none") {
-      ctx.filter = filter;
-    }
+
+    // 1. Background
     if (template.backgroundMode === "color") {
       ctx.fillStyle = template.backgroundValue;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -106,111 +105,71 @@ export default function LabView({
       const bgImg = new Image();
       bgImg.src = template.backgroundValue;
       bgImg.crossOrigin = "anonymous";
-
-      await new Promise((r) => {
-        bgImg.onload = () => {
-          ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-          r(null);
-        };
-
-        bgImg.onerror = () => r(null);
-      });
+      await new Promise((r) => { bgImg.onload = r; bgImg.onerror = r; });
+      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
     }
 
     const allElements = template.elements || [];
 
+    // 2. Loop Elements
     for (const el of allElements) {
       const img = new Image();
-      img.src =
-        el.type === "photo"
-          ? images[allElements.filter((it) => it.type === "photo").indexOf(el)]
-          : el.src || "";
-
+      img.src = el.type === "photo" 
+        ? images[allElements.filter((it) => it.type === "photo").indexOf(el)] 
+        : (el.src || "");
       img.crossOrigin = "anonymous";
+      
       await new Promise((resolve) => {
         const processImage = () => {
           ctx.save();
+          
+          ctx.filter = "none";
+
           const centerX = el.x + el.w / 2;
           const centerY = el.y + el.h / 2;
           ctx.translate(centerX, centerY);
           ctx.rotate(((el.rotate || 0) * Math.PI) / 180);
           ctx.translate(-centerX, -centerY);
+
           if (el.type === "photo") {
             ctx.beginPath();
             if (el.radius === "50%") {
-              ctx.ellipse(
-                centerX,
-                centerY,
-                el.w / 2,
-                el.h / 2,
-                0,
-                0,
-                Math.PI * 2,
-              );
+              ctx.ellipse(centerX, centerY, el.w / 2, el.h / 2, 0, 0, Math.PI * 2);
             } else {
-              const r = el.radius?.includes(" ")
-                ? el.radius.split(" ").map((v) => parseFloat(v) || 0)
+              const r = el.radius?.includes(" ") 
+                ? el.radius.split(" ").map((v) => parseFloat(v) || 0) 
                 : parseFloat(el.radius || "0");
               ctx.roundRect(el.x, el.y, el.w, el.h, r);
             }
             ctx.clip();
 
-            const offscreenCanvas = document.createElement("canvas");
-            offscreenCanvas.width = el.w;
-            offscreenCanvas.height = el.h;
-            const oCtx = offscreenCanvas.getContext("2d");
-            if (oCtx) {
-              const imgRatio = img.width / img.height;
-              const targetRatio = el.w / el.h;
-              let sW, sH, sX, sY;
-              if (imgRatio > targetRatio) {
-                sH = img.height;
-                sW = img.height * targetRatio;
-                sX = (img.width - sW) / 2;
-                sY = 0;
-              } else {
-                sW = img.width;
-                sH = img.width / targetRatio;
-                sX = 0;
-                sY = (img.height - sH) / 2;
-              }
-              oCtx.drawImage(img, sX, sY, sW, sH, 0, 0, el.w, el.h);
-              ctx.drawImage(offscreenCanvas, el.x, el.y);
-            }
-          } else {
-            ctx.filter = "none";
             const imgRatio = img.width / img.height;
             const targetRatio = el.w / el.h;
-            let dW, dH, dX, dY;
+            let sW = img.width, sH = img.height, sX = 0, sY = 0;
+
             if (imgRatio > targetRatio) {
-              dW = el.w;
-              dH = el.w / imgRatio;
-              dX = el.x;
-              dY = el.y + (el.h - dH) / 2;
+              sW = img.height * targetRatio;
+              sX = (img.width - sW) / 2;
             } else {
-              dH = el.h;
-              dW = el.h * imgRatio;
-              dX = el.x + (el.w - dW) / 2;
-              dY = el.y;
+              sH = img.width / targetRatio;
+              sY = (img.height - sH) / 2;
             }
-            ctx.drawImage(img, dX, dY, dW, dH);
+
+            ctx.drawImage(img, sX, sY, sW, sH, el.x, el.y, el.w, el.h);
+          } else {
+            // Draw Sticker
+            ctx.drawImage(img, el.x, el.y, el.w, el.h);
           }
+          
           ctx.restore();
           resolve(null);
         };
 
-        if (img.complete) {
-          setTimeout(processImage, 40);
-        } else {
-          img.onload = processImage;
-
-          img.onerror = () => resolve(null);
-        }
+        if (img.complete) processImage();
+        else { img.onload = processImage; img.onerror = () => resolve(null); }
       });
     }
-    ctx.filter = "none";
-  }, [images, template, filter]);
-
+  }, [images, template]);
   useEffect(() => {
     const timeout = setTimeout(() => {
       renderFinalCollage();
