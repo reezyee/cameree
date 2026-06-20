@@ -46,6 +46,7 @@ export default function LabView({
   template,
   onRetake,
   isMobileView,
+  filter,
 }: LabViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [, setIsPrinting] = useState(false);
@@ -53,6 +54,50 @@ export default function LabView({
   const [isUploading, setIsUploading] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const [printAnimationDone, setPrintAnimationDone] = useState(false);
+  const filters = [
+    { id: "none", label: "Original", style: "" },
+    {
+      id: "sepia",
+      label: "Creamy Film",
+      style: "sepia(25%) contrast(90%) brightness(102%) saturate(75%)",
+    },
+    {
+      id: "classic",
+      label: "Classic B&W",
+      style: "grayscale(100%) sepia(18%) contrast(125%) brightness(98%)",
+    },
+    {
+      id: "darkbw",
+      label: "Dark B&W",
+      style: "grayscale(100%) contrast(185%) brightness(72%)",
+    },
+    {
+      id: "grayscale",
+      label: "Deep Analog",
+      style: "grayscale(100%) contrast(145%) brightness(95%)",
+    },
+    {
+      id: "vivid",
+      label: "Vivid Retro",
+      style: "contrast(110%) brightness(110%) saturate(125%)",
+    },
+    {
+      id: "kodak-portra",
+      label: "Kodak Portra",
+      style: "sepia(10%) contrast(95%) brightness(105%) saturate(110%)",
+    },
+    {
+      id: "fuji-classic",
+      label: "Fuji Classic",
+      style: "contrast(90%) brightness(100%) saturate(90%) hue-rotate(5deg)",
+    },
+    {
+      id: "dusted-film",
+      label: "Dusted Film",
+      style: "contrast(80%) brightness(105%) saturate(70%) sepia(20%)",
+    },
+  ];
+
   const triggerAutomaticPrintSound = useCallback(() => {
     if (window.playPrintSoundGlobal) {
       window.playPrintSoundGlobal();
@@ -104,7 +149,10 @@ export default function LabView({
       const bgImg = new Image();
       bgImg.src = template.backgroundValue;
       bgImg.crossOrigin = "anonymous";
-      await new Promise((r) => { bgImg.onload = r; bgImg.onerror = r; });
+      await new Promise((r) => {
+        bgImg.onload = r;
+        bgImg.onerror = r;
+      });
       ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
     }
 
@@ -113,16 +161,20 @@ export default function LabView({
     // 2. Loop Elements
     for (const el of allElements) {
       const img = new Image();
-      img.src = el.type === "photo" 
-        ? images[allElements.filter((it) => it.type === "photo").indexOf(el)] 
-        : (el.src || "");
+      img.src =
+        el.type === "photo"
+          ? images[allElements.filter((it) => it.type === "photo").indexOf(el)]
+          : el.src || "";
       img.crossOrigin = "anonymous";
-      
+
       await new Promise((resolve) => {
         const processImage = () => {
           ctx.save();
-          
-          ctx.filter = "none";
+
+          const activeFilterStyle =
+            filters.find((f) => f.id === filter)?.style || "none";
+
+          ctx.filter = activeFilterStyle;
 
           const centerX = el.x + el.w / 2;
           const centerY = el.y + el.h / 2;
@@ -133,10 +185,18 @@ export default function LabView({
           if (el.type === "photo") {
             ctx.beginPath();
             if (el.radius === "50%") {
-              ctx.ellipse(centerX, centerY, el.w / 2, el.h / 2, 0, 0, Math.PI * 2);
+              ctx.ellipse(
+                centerX,
+                centerY,
+                el.w / 2,
+                el.h / 2,
+                0,
+                0,
+                Math.PI * 2,
+              );
             } else {
-              const r = el.radius?.includes(" ") 
-                ? el.radius.split(" ").map((v) => parseFloat(v) || 0) 
+              const r = el.radius?.includes(" ")
+                ? el.radius.split(" ").map((v) => parseFloat(v) || 0)
                 : parseFloat(el.radius || "0");
               ctx.roundRect(el.x, el.y, el.w, el.h, r);
             }
@@ -144,7 +204,10 @@ export default function LabView({
 
             const imgRatio = img.width / img.height;
             const targetRatio = el.w / el.h;
-            let sW = img.width, sH = img.height, sX = 0, sY = 0;
+            let sW = img.width,
+              sH = img.height,
+              sX = 0,
+              sY = 0;
 
             if (imgRatio > targetRatio) {
               sW = img.height * targetRatio;
@@ -159,16 +222,19 @@ export default function LabView({
             // Draw Sticker
             ctx.drawImage(img, el.x, el.y, el.w, el.h);
           }
-          
+
           ctx.restore();
           resolve(null);
         };
 
         if (img.complete) processImage();
-        else { img.onload = processImage; img.onerror = () => resolve(null); }
+        else {
+          img.onload = processImage;
+          img.onerror = () => resolve(null);
+        }
       });
     }
-  }, [images, template]);
+  }, [images, template, filter]);
   useEffect(() => {
     const timeout = setTimeout(() => {
       renderFinalCollage();

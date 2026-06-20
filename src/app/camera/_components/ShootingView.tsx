@@ -132,32 +132,42 @@ export default function ShootingView({
     if (!videoRef.current) return;
 
     const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-    if (ctx) {
-      const activeFilterStyle = filters.find(
-        (f) => f.id === activeFilter,
-      )?.style;
-      if (activeFilter !== "none" && activeFilterStyle) {
-        ctx.filter = activeFilterStyle;
-      }
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = video.videoWidth;
+    sourceCanvas.height = video.videoHeight;
 
-      ctx.save();
-      if (isMirrored) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
+    const sourceCtx = sourceCanvas.getContext("2d");
+    if (!sourceCtx) return;
 
-      ctx.drawImage(video, 0, 0);
-      ctx.restore();
+    sourceCtx.save();
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-      setCaptured((prev) => [...prev, dataUrl]);
+    if (isMirrored) {
+      sourceCtx.translate(sourceCanvas.width, 0);
+      sourceCtx.scale(-1, 1);
     }
+
+    sourceCtx.drawImage(video, 0, 0);
+    sourceCtx.restore();
+
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width = sourceCanvas.width;
+    finalCanvas.height = sourceCanvas.height;
+
+    const finalCtx = finalCanvas.getContext("2d");
+    if (!finalCtx) return;
+
+    const activeFilterStyle =
+      filters.find((f) => f.id === activeFilter)?.style || "none";
+
+    finalCtx.filter = activeFilterStyle;
+    finalCtx.drawImage(sourceCanvas, 0, 0);
+
+    const dataUrl = finalCanvas.toDataURL("image/jpeg", 0.9);
+
+    setCaptured((prev) => [...prev, dataUrl]);
   };
+
   const captureSingle = async () => {
     if (isShooting) return;
     setIsFilterLocked(true);
@@ -291,10 +301,7 @@ export default function ShootingView({
                   ) : (
                     <button
                       onClick={() => {
-                        const style =
-                          filters.find((f) => f.id === activeFilter)?.style ||
-                          "";
-                        onComplete(captured, style);
+                        onComplete(captured, activeFilter);
                       }}
                       className="p-5 bg-[#153378] text-white rounded-full shadow-2xl"
                     >
