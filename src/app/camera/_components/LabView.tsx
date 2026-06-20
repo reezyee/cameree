@@ -46,7 +46,6 @@ export default function LabView({
   template,
   onRetake,
   isMobileView,
-  filter,
 }: LabViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [, setIsPrinting] = useState(false);
