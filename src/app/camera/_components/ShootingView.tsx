@@ -128,7 +128,7 @@ export default function ShootingView({
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   };
 
-  const takeSnapshot = () => {
+const takeSnapshot = async () => {
     if (!videoRef.current) return;
 
     const video = videoRef.current;
@@ -152,7 +152,12 @@ export default function ShootingView({
       ctx.drawImage(video, 0, 0);
       ctx.restore();
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      const dataUrl = await new Promise<string>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve(canvas.toDataURL("image/jpeg", 0.9));
+        });
+      });
+
       setCaptured((prev) => [...prev, dataUrl]);
     }
   };
