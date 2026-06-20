@@ -160,7 +160,7 @@ export default function ShootingView({
     const activeFilterStyle =
       filters.find((f) => f.id === activeFilter)?.style || "none";
 
-    finalCtx.filter = "grayscale(100%)";
+    finalCtx.filter = activeFilterStyle;
     finalCtx.drawImage(sourceCanvas, 0, 0);
 
     console.log("filter:", activeFilter);
@@ -347,6 +347,11 @@ export default function ShootingView({
                   <img
                     src={captured[i]}
                     className="w-full h-full object-cover"
+                    style={{
+                      filter:
+                        filters.find((f) => f.id === activeFilter)?.style ||
+                        "none",
+                    }}
                     alt=""
                   />
                 ) : (
