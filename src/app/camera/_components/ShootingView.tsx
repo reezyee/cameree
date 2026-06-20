@@ -160,9 +160,11 @@ export default function ShootingView({
     const activeFilterStyle =
       filters.find((f) => f.id === activeFilter)?.style || "none";
 
-    finalCtx.filter = activeFilterStyle;
+    finalCtx.filter = "grayscale(100%)";
     finalCtx.drawImage(sourceCanvas, 0, 0);
 
+    console.log("filter:", activeFilter);
+    console.log("style:", activeFilterStyle);
     const dataUrl = finalCanvas.toDataURL("image/jpeg", 0.9);
 
     setCaptured((prev) => [...prev, dataUrl]);
