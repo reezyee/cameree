@@ -47,6 +47,11 @@ export default function LobbyView({
   const [windowSize, setWindowSize] = useState({ w: 0, h: 0 });
   const [liveTemplates, setLiveTemplates] = useState<LobbyTemplate[]>(initialTemplates);
 
+  // State untuk Mouse Drag & Wheel
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
   useEffect(() => {
     setLiveTemplates(initialTemplates);
   }, [initialTemplates]);
@@ -90,6 +95,42 @@ export default function LobbyView({
     return () => clearInterval(interval);
   }, [loading]);
 
+  // Handler Roda Mouse (Wheel)
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (scrollRef.current) {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        scrollRef.current.scrollLeft += e.deltaY * 1.5;
+      }
+    }
+  };
+
+  // Handler Drag dengan Mouse yang dioptimalkan (Smooth & Anti-patah)
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    setIsDragging(true);
+    setStartX(e.pageX - (scrollRef.current?.offsetLeft || 0));
+    setScrollLeft(scrollRef.current?.scrollLeft || 0);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    
+    // Menggunakan requestAnimationFrame agar pergerakan sinkron dengan refresh rate layar (tidak patah-patah)
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollLeft = scrollLeft - walk;
+      }
+    });
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full w-full gap-4 bg-[#d8d2c9] text-[#153378]">
@@ -102,11 +143,17 @@ export default function LobbyView({
     <div className="w-full h-full flex items-center justify-center overflow-hidden relative">
       <div
         ref={scrollRef}
-        className={`h-full w-full overflow-x-auto overflow-y-hidden no-scrollbar flex items-center snap-x snap-mandatory ${
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className={`h-full w-full overflow-x-auto overflow-y-hidden no-scrollbar flex items-center snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none ${
           isMobileView ? "px-[30vw]" : "px-[40vw]"
         }`}
         style={{
-          scrollBehavior: "smooth",
+          // Kunci utama: Matikan smooth scroll saat sedang drag agar gerakannya instan dan halus tanpa delay
+          scrollBehavior: isDragging ? "auto" : "smooth",
           scrollbarWidth: "none",
         }}
       >
@@ -130,7 +177,11 @@ export default function LobbyView({
                   viewport={{ margin: "-10%" }}
                 >
                   <button
-                    onClick={() => setSelectedTemplate(t)}
+                    onClick={() => {
+                      if (!isDragging) {
+                        setSelectedTemplate(t);
+                      }
+                    }}
                     className={`relative transition-all duration-700 shadow-[0_40px_80px_rgba(0,0,0,0.15)] overflow-hidden pointer-events-auto ${
                       selectedTemplate?.id === t.id
                         ? `ring-[#153378] ring-offset-[#d8d2c9] z-20 scale-100 ${

@@ -43,6 +43,11 @@ export default function TemplateManager() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // State untuk Mouse Drag & Wheel
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
   const fetchTemplates = async () => {
     setLoading(true);
     try {
@@ -104,6 +109,42 @@ export default function TemplateManager() {
     }
   };
 
+  // Handler Roda Mouse (Wheel) dengan pengali kecepatan
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (scrollContainerRef.current) {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        scrollContainerRef.current.scrollLeft += e.deltaY * 1.5;
+      }
+    }
+  };
+
+  // Handler Drag dengan Mouse (Klik dan tarik kosong)
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Jangan aktifkan drag kontainer jika klik pada tombol/link aksi
+    if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("a")) return;
+    setIsDragging(true);
+    setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
+    setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+      }
+    });
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-9999 bg-black backdrop-blur-lg flex flex-col items-center justify-center">
@@ -137,7 +178,7 @@ export default function TemplateManager() {
           </div>
           <button
             onClick={fetchTemplates}
-            className="flex items-center gap-3 bg-zinc-900/80 border border-white/5 px-8 py-4 rounded-2xl text-[11px] font-black hover:bg-blue-600 hover:text-white transition-all duration-500 uppercase tracking-widest"
+            className="flex items-center gap-3 bg-zinc-900/80 border border-white/5 px-8 py-4 rounded-2xl text-[11px] font-black hover:bg-blue-600 hover:text-white transition-all duration-500 uppercase tracking-widest cursor-pointer"
           >
             <RefreshCw size={16} /> Sync Library
           </button>
@@ -146,14 +187,22 @@ export default function TemplateManager() {
         <div className="relative">
           <div
             ref={scrollContainerRef}
-            className="flex items-center overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory px-[40vw]"
-            style={{ width: "100%", scrollBehavior: "smooth" }}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            className="flex items-center overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory px-[40vw] cursor-grab active:cursor-grabbing select-none"
+            style={{
+              width: "100%",
+              scrollBehavior: isDragging ? "auto" : "smooth",
+            }}
           >
             <Reorder.Group
               axis="x"
               values={templates}
               onReorder={handleReorder}
-              className="flex items-end gap-16"
+              className="flex items-end gap-16 py-6"
               style={{ width: "max-content" }}
             >
               {templates.map((t) => (
@@ -194,13 +243,13 @@ export default function TemplateManager() {
               <div className="flex flex-col gap-3">
                 <button
                   onClick={confirmDelete}
-                  className="w-full bg-red-600 text-white font-black py-5 rounded-2xl hover:bg-red-500 transition-all active:scale-95 text-xs uppercase tracking-[0.2em]"
+                  className="w-full bg-red-600 text-white font-black py-5 rounded-2xl hover:bg-red-500 transition-all active:scale-95 text-xs uppercase tracking-[0.2em] cursor-pointer"
                 >
                   Confirm Delete
                 </button>
                 <button
                   onClick={() => setDeleteId(null)}
-                  className="w-full bg-white/5 text-zinc-400 font-black py-5 rounded-2xl hover:bg-white/10 transition-all text-xs uppercase tracking-[0.2em]"
+                  className="w-full bg-white/5 text-zinc-400 font-black py-5 rounded-2xl hover:bg-white/10 transition-all text-xs uppercase tracking-[0.2em] cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -246,9 +295,9 @@ function TemplateCard({
         damping: 26,
         mass: 0.8,
       }}
-      className="flex flex-col gap-8 shrink-0 group snap-center select-none relative cursor-grab active:cursor-grabbing"
+      className="flex flex-col gap-8 shrink-0 group snap-center select-none relative"
     >
-      <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400">
+      <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-300 flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-zinc-400 pointer-events-none">
         <MoveHorizontal size={10} /> Drag to Reorder
       </div>
 
@@ -284,7 +333,7 @@ function TemplateCard({
           return (
             <div
               key={idx}
-              className="absolute overflow-hidden"
+              className="absolute overflow-hidden pointer-events-none"
               style={{
                 left: el.x * ratio,
                 top: el.y * ratio,
@@ -323,7 +372,7 @@ function TemplateCard({
           );
         })}
 
-        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-2 backdrop-blur-sm z-100 pointer-events-auto">
+        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center gap-2 backdrop-blur-sm z-50 pointer-events-auto">
           <Link
             href={`/admin/editor?id=${t.id}`}
             className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all duration-300"
