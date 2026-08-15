@@ -121,7 +121,6 @@ export default function TemplateManager() {
 
   // Handler Drag dengan Mouse (Klik dan tarik kosong)
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Jangan aktifkan drag kontainer jika klik pada tombol/link aksi
     if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("a")) return;
     setIsDragging(true);
     setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
@@ -184,7 +183,7 @@ export default function TemplateManager() {
           </button>
         </div>
 
-        <div className="relative">
+        <div className="relative w-full overflow-hidden">
           <div
             ref={scrollContainerRef}
             onWheel={handleWheel}
@@ -192,9 +191,12 @@ export default function TemplateManager() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUpOrLeave}
             onMouseLeave={handleMouseUpOrLeave}
-            className="flex items-center overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory px-[40vw] cursor-grab active:cursor-grabbing select-none"
+            className="flex items-center overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing select-none"
             style={{
-              width: "100%",
+              width: "100vw",
+              marginLeft: "calc(-50vw + 50%)",
+              paddingLeft: "max(5vw, calc(50vw - 225px))",
+              paddingRight: "max(5vw, calc(50vw - 225px))",
               scrollBehavior: isDragging ? "auto" : "smooth",
             }}
           >
@@ -203,7 +205,7 @@ export default function TemplateManager() {
               values={templates}
               onReorder={handleReorder}
               className="flex items-end gap-16 py-6"
-              style={{ width: "max-content" }}
+              style={{ width: "max-content", display: "flex" }}
             >
               {templates.map((t) => (
                 <TemplateCard key={t.id} t={t} setDeleteId={setDeleteId} />
